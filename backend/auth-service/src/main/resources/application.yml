@@ -1,0 +1,55 @@
+server:
+  port: ${SERVER_PORT:8201}
+
+spring:
+  application:
+    name: ai-oj-auth-service
+  config:
+    import: optional:nacos:${spring.application.name}.yml
+  datasource:
+    url: ${MYSQL_URL:jdbc:mysql://localhost:3306/ai_oj_next?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai}
+    username: ${MYSQL_USER:aioj}
+    password: ${MYSQL_PASSWORD:change-me}
+  flyway:
+    enabled: ${FLYWAY_ENABLED:false}
+    clean-disabled: true
+  cloud:
+    nacos:
+      discovery:
+        enabled: ${NACOS_ENABLED:false}
+        server-addr: ${NACOS_SERVER_ADDR:127.0.0.1:8848}
+      config:
+        enabled: ${NACOS_ENABLED:false}
+        server-addr: ${NACOS_SERVER_ADDR:127.0.0.1:8848}
+        file-extension: yml
+    sentinel:
+      transport:
+        dashboard: ${SENTINEL_DASHBOARD:127.0.0.1:8858}
+
+aioj:
+  security:
+    jwt:
+      issuer: ${JWT_ISSUER:ai-oj-next}
+      hmac-secret: ${JWT_HMAC_SECRET:replace-with-at-least-32-bytes-dev-secret}
+      private-key-pem: ${JWT_PRIVATE_KEY_PEM:}
+      public-key-pem: ${JWT_PUBLIC_KEY_PEM:}
+      access-ttl: ${JWT_ACCESS_TTL:PT2H}
+      refresh-ttl: ${JWT_REFRESH_TTL:P14D}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus,flyway
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: when_authorized
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+

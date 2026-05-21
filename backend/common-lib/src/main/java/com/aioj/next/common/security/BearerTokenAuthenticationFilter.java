@@ -1,0 +1,40 @@
+package com.aioj.next.common.security;
+
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.filter.OncePerRequestFilter;
+
+import java.io.IOException;
+
+public class BearerTokenAuthenticationFilter extends OncePerRequestFilter {
+    private final JwtTokenService jwtTokenService;
+
+    public BearerTokenAuthenticationFilter(JwtTokenService jwtTokenService) {
+        this.jwtTokenService = jwtTokenService;
+    }
+
+    @Override
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
+            throws ServletException, IOException {
+        String header = request.getHeader("Authorization");
+        if (header != null && header.startsWith("Bearer ")) {
+            try {
+                var principal = jwtTokenService.toPrincipal(jwtTokenService.parse(header.substring(7)));
+                var authorities = principal.roles().stream()
+                        .map(role -> new SimpleGrantedAuthority("ROLE_" + role.name()))
+                        .toList();
+                var authentication = new UsernamePasswordAuthenticationToken(principal, null, authorities);
+                SecurityContextHolder.getContext().setAuthentication(authentication);
+            } catch (RuntimeException ignored) {
+                SecurityContextHolder.clearContext();
+            }
+        }
+        filterChain.doFilter(request, response);
+    }
+}
+

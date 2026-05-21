@@ -1,0 +1,21 @@
+package com.aioj.next.contract.problem;
+
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+
+import java.util.List;
+
+public record ProblemCreateRequest(
+        @NotBlank @Size(max = 120) String title,
+        @NotNull Difficulty difficulty,
+        @NotBlank String statement,
+        List<String> tags,
+        @NotEmpty List<@Valid TestCaseDto> testCases,
+        int timeLimitMillis,
+        int memoryLimitKb
+) {
+}
+

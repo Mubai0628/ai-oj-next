@@ -1,0 +1,17 @@
+{
+  "name": "@aioj/web-user",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0 --port 5173",
+    "build": "vue-tsc --noEmit && vite build",
+    "typecheck": "vue-tsc --noEmit",
+    "preview": "vite preview --port 4173"
+  },
+  "dependencies": {
+    "@aioj/api-client": "0.1.0",
+    "@aioj/i18n": "0.1.0",
+    "@aioj/ui": "0.1.0"
+  }
+}

@@ -1,0 +1,73 @@
+* {
+  box-sizing: border-box;
+}
+
+html {
+  min-width: 320px;
+  background: var(--color-bg);
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  background:
+    radial-gradient(circle at 74% 8%, rgba(37, 99, 235, 0.08), transparent 26%),
+    linear-gradient(180deg, #fbfdff 0%, var(--color-bg) 38%);
+  color: var(--color-text);
+  font-family: var(--font-system);
+  font-size: 14px;
+}
+
+button,
+input,
+textarea {
+  font-family: inherit;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+::selection {
+  background: rgba(37, 99, 235, 0.16);
+}
+
+:focus-visible {
+  outline: 3px solid rgba(37, 99, 235, 0.22);
+  outline-offset: 2px;
+}
+
+.arco-card {
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+
+.arco-card-body {
+  padding: 20px;
+}
+
+.arco-btn-primary {
+  background: var(--color-primary);
+}
+
+.arco-btn-primary:not(.arco-btn-disabled):hover {
+  background: var(--color-primary-hover);
+}
+
+.arco-input-wrapper,
+.arco-select-view-single {
+  border-color: var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+}
+
+.arco-input-wrapper:hover,
+.arco-select-view-single:hover {
+  border-color: rgba(37, 99, 235, 0.42);
+}
+
+.arco-empty-description {
+  color: var(--color-text-muted);
+}

@@ -1,0 +1,58 @@
+server:
+  port: ${SERVER_PORT:8204}
+
+spring:
+  application:
+    name: ai-oj-ai-service
+  config:
+    import: optional:nacos:${spring.application.name}.yml
+  datasource:
+    url: ${MYSQL_URL:jdbc:mysql://localhost:3306/ai_oj_next?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai}
+    username: ${MYSQL_USER:aioj}
+    password: ${MYSQL_PASSWORD:change-me}
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+  flyway:
+    enabled: ${FLYWAY_ENABLED:false}
+    clean-disabled: true
+  cloud:
+    nacos:
+      discovery:
+        enabled: ${NACOS_ENABLED:false}
+        server-addr: ${NACOS_SERVER_ADDR:127.0.0.1:8848}
+      config:
+        enabled: ${NACOS_ENABLED:false}
+        server-addr: ${NACOS_SERVER_ADDR:127.0.0.1:8848}
+        file-extension: yml
+    sentinel:
+      transport:
+        dashboard: ${SENTINEL_DASHBOARD:127.0.0.1:8858}
+
+aioj:
+  security:
+    jwt:
+      issuer: ${JWT_ISSUER:ai-oj-next}
+      hmac-secret: ${JWT_HMAC_SECRET:replace-with-at-least-32-bytes-dev-secret}
+      private-key-pem: ${JWT_PRIVATE_KEY_PEM:}
+      public-key-pem: ${JWT_PUBLIC_KEY_PEM:}
+  ai:
+    provider: ${AI_PROVIDER:openai-compatible}
+    base-url: ${AI_BASE_URL:https://api.moonshot.cn/v1/chat/completions}
+    api-key: ${AI_API_KEY:}
+    model: ${AI_MODEL:moonshot-v1-32k}
+    problem-service-uri: ${PROBLEM_SERVICE_URI:http://localhost:8202}
+    daily-limit: ${AI_DAILY_LIMIT:50}
+    monthly-limit: ${AI_MONTHLY_LIMIT:1000}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus,flyway
+  endpoint:
+    health:
+      probes:
+        enabled: true

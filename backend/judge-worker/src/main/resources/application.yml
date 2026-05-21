@@ -1,0 +1,55 @@
+server:
+  port: ${SERVER_PORT:8203}
+
+spring:
+  application:
+    name: ai-oj-judge-worker
+  config:
+    import: optional:nacos:${spring.application.name}.yml
+  datasource:
+    url: ${MYSQL_URL:jdbc:mysql://localhost:3306/ai_oj_next?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai}
+    username: ${MYSQL_USER:aioj}
+    password: ${MYSQL_PASSWORD:change-me}
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_DEFAULT_USER:guest}
+    password: ${RABBITMQ_DEFAULT_PASS:guest}
+    listener:
+      simple:
+        acknowledge-mode: manual
+        prefetch: ${JUDGE_PREFETCH:1}
+        concurrency: ${JUDGE_CONCURRENCY:1}
+        max-concurrency: ${JUDGE_MAX_CONCURRENCY:4}
+  cloud:
+    nacos:
+      discovery:
+        enabled: ${NACOS_ENABLED:false}
+        server-addr: ${NACOS_SERVER_ADDR:127.0.0.1:8848}
+      config:
+        enabled: ${NACOS_ENABLED:false}
+        server-addr: ${NACOS_SERVER_ADDR:127.0.0.1:8848}
+        file-extension: yml
+    sentinel:
+      transport:
+        dashboard: ${SENTINEL_DASHBOARD:127.0.0.1:8858}
+
+aioj:
+  testcase:
+    storage-root: ${AIOJ_TESTCASE_STORAGE_ROOT:${user.home}/.ai-oj-next/testcases}
+  judge:
+    sandbox-endpoint: ${SANDBOX_ENDPOINT:http://localhost:8090/execute}
+    sandbox-token: ${SANDBOX_TOKEN:}
+    sandbox-timeout: ${SANDBOX_TIMEOUT:PT10S}
+    language-whitelist: ${JUDGE_LANGUAGE_WHITELIST:java,cpp,python}
+    cache-root: ${AIOJ_JUDGE_CACHE_ROOT:${user.home}/.ai-oj-next/judge-cache}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true

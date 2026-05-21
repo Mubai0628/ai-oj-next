@@ -1,0 +1,245 @@
+name: ai-oj-next
+
+services:
+  mysql:
+    image: mysql:8.4
+    profiles: ["infra"]
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-ai_oj_next}
+      MYSQL_USER: ${MYSQL_USER:-aioj}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-change-me}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-change-root-me}
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./data/mysql:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7.4-alpine
+    profiles: ["infra"]
+    command: sh -c 'redis-server --appendonly yes --requirepass "$${REDIS_PASSWORD}"'
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-change-redis-me}
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./data/redis:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a $${REDIS_PASSWORD} ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    profiles: ["infra"]
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-aioj}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-change-rabbit-me}
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - ./data/rabbitmq:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  nacos:
+    image: nacos/nacos-server:v3.0.3
+    profiles: ["infra"]
+    environment:
+      MODE: standalone
+      NACOS_AUTH_ENABLE: "true"
+      NACOS_AUTH_TOKEN: ${NACOS_AUTH_TOKEN:-replace-with-long-nacos-token}
+      NACOS_AUTH_IDENTITY_KEY: ${NACOS_AUTH_IDENTITY_KEY:-nacos}
+      NACOS_AUTH_IDENTITY_VALUE: ${NACOS_AUTH_IDENTITY_VALUE:-nacos}
+    ports:
+      - "8848:8848"
+      - "9848:9848"
+      - "9849:9849"
+      - "7848:7848"
+      - "8080:8080"
+    volumes:
+      - ./data/nacos:/home/nacos/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8848/nacos/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 8s
+      retries: 20
+
+  sentinel-dashboard:
+    image: bladex/sentinel-dashboard:1.8.8
+    profiles: ["infra"]
+    ports:
+      - "8858:8858"
+
+  prometheus:
+    image: prom/prometheus:v3.0.1
+    profiles: ["infra"]
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+
+  grafana:
+    image: grafana/grafana:11.4.0
+    profiles: ["infra"]
+    ports:
+      - "3000:3000"
+
+  gateway-service:
+    profiles: ["app"]
+    build:
+      context: ..
+      dockerfile: deploy/docker/backend.Dockerfile
+      args:
+        SERVICE_MODULE: gateway-service
+    environment:
+      SERVER_PORT: 8101
+      NACOS_ENABLED: ${NACOS_ENABLED:-true}
+      NACOS_SERVER_ADDR: ${NACOS_SERVER_ADDR:-nacos:8848}
+      SENTINEL_DASHBOARD: ${SENTINEL_DASHBOARD:-sentinel-dashboard:8858}
+      AUTH_SERVICE_URI: lb://ai-oj-auth-service
+      PROBLEM_SERVICE_URI: lb://ai-oj-problem-service
+      AI_SERVICE_URI: lb://ai-oj-ai-service
+    ports:
+      - "8101:8101"
+    depends_on:
+      nacos:
+        condition: service_healthy
+
+  auth-service:
+    profiles: ["app"]
+    build:
+      context: ..
+      dockerfile: deploy/docker/backend.Dockerfile
+      args:
+        SERVICE_MODULE: auth-service
+    environment:
+      SERVER_PORT: 8201
+      MYSQL_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE:-ai_oj_next}?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+      MYSQL_USER: ${MYSQL_USER:-aioj}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-change-me}
+      FLYWAY_ENABLED: "true"
+      NACOS_ENABLED: ${NACOS_ENABLED:-true}
+      NACOS_SERVER_ADDR: ${NACOS_SERVER_ADDR:-nacos:8848}
+      SENTINEL_DASHBOARD: ${SENTINEL_DASHBOARD:-sentinel-dashboard:8858}
+      JWT_HMAC_SECRET: ${JWT_HMAC_SECRET:-replace-with-at-least-32-bytes-dev-secret}
+    depends_on:
+      mysql:
+        condition: service_healthy
+      nacos:
+        condition: service_healthy
+
+  problem-service:
+    profiles: ["app"]
+    build:
+      context: ..
+      dockerfile: deploy/docker/backend.Dockerfile
+      args:
+        SERVICE_MODULE: problem-service
+    environment:
+      SERVER_PORT: 8202
+      MYSQL_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE:-ai_oj_next}?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+      MYSQL_USER: ${MYSQL_USER:-aioj}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-change-me}
+      REDIS_HOST: redis
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-change-redis-me}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-aioj}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-change-rabbit-me}
+      FLYWAY_ENABLED: "true"
+      NACOS_ENABLED: ${NACOS_ENABLED:-true}
+      NACOS_SERVER_ADDR: ${NACOS_SERVER_ADDR:-nacos:8848}
+      JWT_HMAC_SECRET: ${JWT_HMAC_SECRET:-replace-with-at-least-32-bytes-dev-secret}
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      nacos:
+        condition: service_healthy
+
+  ai-service:
+    profiles: ["app"]
+    build:
+      context: ..
+      dockerfile: deploy/docker/backend.Dockerfile
+      args:
+        SERVICE_MODULE: ai-service
+    environment:
+      SERVER_PORT: 8204
+      MYSQL_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE:-ai_oj_next}?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+      MYSQL_USER: ${MYSQL_USER:-aioj}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-change-me}
+      REDIS_HOST: redis
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-change-redis-me}
+      FLYWAY_ENABLED: "true"
+      NACOS_ENABLED: ${NACOS_ENABLED:-true}
+      NACOS_SERVER_ADDR: ${NACOS_SERVER_ADDR:-nacos:8848}
+      JWT_HMAC_SECRET: ${JWT_HMAC_SECRET:-replace-with-at-least-32-bytes-dev-secret}
+      AI_BASE_URL: ${AI_BASE_URL:-https://api.moonshot.cn/v1/chat/completions}
+      AI_API_KEY: ${AI_API_KEY:-}
+      AI_MODEL: ${AI_MODEL:-moonshot-v1-32k}
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      nacos:
+        condition: service_healthy
+
+  judge-worker:
+    profiles: ["judge"]
+    build:
+      context: ..
+      dockerfile: deploy/docker/backend.Dockerfile
+      args:
+        SERVICE_MODULE: judge-worker
+    environment:
+      SERVER_PORT: 8203
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-aioj}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-change-rabbit-me}
+      NACOS_ENABLED: ${NACOS_ENABLED:-true}
+      NACOS_SERVER_ADDR: ${NACOS_SERVER_ADDR:-nacos:8848}
+      SANDBOX_ENDPOINT: ${SANDBOX_ENDPOINT:-http://sandbox:8090/execute}
+      SANDBOX_TOKEN: ${SANDBOX_TOKEN:-}
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      nacos:
+        condition: service_healthy
+
+  web-user:
+    profiles: ["app"]
+    build:
+      context: ..
+      dockerfile: deploy/docker/web.Dockerfile
+      args:
+        APP_WORKSPACE: "@aioj/web-user"
+        APP_DIR: web-user
+    ports:
+      - "5173:80"
+
+  web-admin:
+    profiles: ["app"]
+    build:
+      context: ..
+      dockerfile: deploy/docker/web.Dockerfile
+      args:
+        APP_WORKSPACE: "@aioj/web-admin"
+        APP_DIR: web-admin
+    ports:
+      - "5174:80"
+

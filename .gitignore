@@ -1,0 +1,14 @@
+.idea/
+.vscode/
+target/
+node_modules/
+dist/
+coverage/
+.env
+.env.local
+*.log
+*.iml
+deploy/secrets/*.pem
+deploy/secrets/*.key
+deploy/data/
+

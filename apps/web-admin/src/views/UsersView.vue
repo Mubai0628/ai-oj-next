@@ -1,0 +1,215 @@
+<template>
+  <section class="view-stack">
+    <a-card :bordered="false">
+      <div class="toolbar-row">
+        <a-space wrap>
+          <a-input-search v-model="filters.keyword" :placeholder="t('adminUsers.search')" allow-clear @search="loadUsers" />
+          <a-select v-model="filters.role" :placeholder="t('common.roles')" allow-clear class="filter-control" @change="loadUsers">
+            <a-option value="">{{ t('adminUsers.allRoles') }}</a-option>
+            <a-option v-for="role in roles" :key="role.role" :value="role.role">{{ roleLabel(role.role, role.label) }}</a-option>
+          </a-select>
+          <a-select v-model="filters.enabled" :placeholder="t('common.status')" allow-clear class="filter-control" @change="loadUsers">
+            <a-option value="">{{ t('adminUsers.allStatuses') }}</a-option>
+            <a-option :value="true">{{ t('common.enabled') }}</a-option>
+            <a-option :value="false">{{ t('common.disabled') }}</a-option>
+          </a-select>
+        </a-space>
+        <a-space wrap>
+          <a-button @click="loadUsers">{{ t('common.refresh') }}</a-button>
+          <a-button type="primary" @click="openCreate">{{ t('adminUsers.create') }}</a-button>
+        </a-space>
+      </div>
+    </a-card>
+
+    <a-alert v-if="error" type="error" show-icon :content="error" />
+    <a-card :bordered="false">
+      <a-table :data="users" :loading="loading" :pagination="false" row-key="userId">
+        <template #columns>
+          <a-table-column :title="t('common.account')" data-index="account" :width="160" />
+          <a-table-column :title="t('common.displayName')" data-index="displayName" />
+          <a-table-column :title="t('common.email')" data-index="email" />
+          <a-table-column :title="t('common.roles')" :width="230">
+            <template #cell="{ record }">
+              <a-space wrap>
+                <a-tag v-for="role in record.roles" :key="role" :color="role === 'ADMIN' ? 'red' : 'arcoblue'">
+                  {{ t(`role.${role}`) }}
+                </a-tag>
+              </a-space>
+            </template>
+          </a-table-column>
+          <a-table-column :title="t('common.status')" :width="120">
+            <template #cell="{ record }">
+              <a-tag :color="record.enabled ? 'green' : 'gray'">{{ record.enabled ? t('common.enabled') : t('common.disabled') }}</a-tag>
+            </template>
+          </a-table-column>
+          <a-table-column :title="t('common.actions')" :width="230">
+            <template #cell="{ record }">
+              <a-space>
+                <a-button size="small" @click="openEdit(record)">{{ t('common.edit') }}</a-button>
+                <a-popconfirm :content="t('adminUsers.disableConfirm')" @ok="disableUser(record)">
+                  <a-button size="small" status="danger" :disabled="!record.enabled">{{ t('common.disable') }}</a-button>
+                </a-popconfirm>
+              </a-space>
+            </template>
+          </a-table-column>
+        </template>
+      </a-table>
+      <a-empty v-if="!loading && users.length === 0" :description="t('adminUsers.empty')" />
+    </a-card>
+
+    <a-modal v-model:visible="modalVisible" :title="editingUser ? t('adminUsers.editModal') : t('adminUsers.createModal')" :ok-loading="saving" @ok="saveUser">
+      <a-form :model="form" layout="vertical">
+        <a-form-item v-if="!editingUser" :label="t('common.account')">
+          <a-input v-model="form.account" />
+        </a-form-item>
+        <a-form-item v-if="!editingUser" :label="t('common.password')">
+          <a-input-password v-model="form.password" />
+        </a-form-item>
+        <a-form-item :label="t('common.displayName')">
+          <a-input v-model="form.displayName" />
+        </a-form-item>
+        <a-form-item :label="t('common.email')">
+          <a-input v-model="form.email" />
+        </a-form-item>
+        <a-form-item :label="t('common.roles')">
+          <a-select v-model="form.roles" multiple>
+            <a-option v-for="role in roles" :key="role.role" :value="role.role">{{ roleLabel(role.role, role.label) }}</a-option>
+          </a-select>
+        </a-form-item>
+        <a-form-item :label="t('common.enabled')">
+          <a-switch v-model="form.enabled" />
+        </a-form-item>
+      </a-form>
+    </a-modal>
+  </section>
+</template>
+
+<script setup lang="ts">
+import { onMounted, reactive, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
+import { Message } from '@arco-design/web-vue';
+import { api, type AdminUserResponse, type Role, type RoleResponse } from '@aioj/api-client';
+
+const { t } = useI18n();
+const loading = ref(false);
+const saving = ref(false);
+const error = ref('');
+const users = ref<AdminUserResponse[]>([]);
+const roles = ref<RoleResponse[]>([]);
+const modalVisible = ref(false);
+const editingUser = ref<AdminUserResponse | null>(null);
+const filters = reactive<{ keyword: string; role: Role | ''; enabled: boolean | '' }>({
+  keyword: '',
+  role: '',
+  enabled: ''
+});
+const form = reactive({
+  account: '',
+  password: '',
+  displayName: '',
+  email: '',
+  roles: [] as Role[],
+  enabled: true
+});
+
+async function loadRoles() {
+  roles.value = await api.roles();
+}
+
+async function loadUsers() {
+  loading.value = true;
+  error.value = '';
+  try {
+    users.value = (await api.users({ ...filters, page: 1, pageSize: 50 })).records;
+  } catch (caught) {
+    error.value = caught instanceof Error ? caught.message : t('adminUsers.loadFailed');
+  } finally {
+    loading.value = false;
+  }
+}
+
+function roleLabel(role: Role, fallback?: string) {
+  return t(`role.${role}`) || fallback || role;
+}
+
+function resetForm() {
+  form.account = '';
+  form.password = '';
+  form.displayName = '';
+  form.email = '';
+  form.roles = ['STUDENT'];
+  form.enabled = true;
+}
+
+function openCreate() {
+  editingUser.value = null;
+  resetForm();
+  modalVisible.value = true;
+}
+
+function openEdit(user: AdminUserResponse) {
+  editingUser.value = user;
+  form.account = user.account;
+  form.password = '';
+  form.displayName = user.displayName;
+  form.email = user.email || '';
+  form.roles = [...user.roles];
+  form.enabled = user.enabled;
+  modalVisible.value = true;
+}
+
+async function saveUser() {
+  saving.value = true;
+  try {
+    if (editingUser.value) {
+      await api.updateUser(editingUser.value.userId, {
+        displayName: form.displayName.trim(),
+        email: form.email.trim() || undefined,
+        roles: form.roles,
+        enabled: form.enabled
+      });
+      Message.success(t('adminUsers.userUpdated'));
+    } else {
+      await api.createUser({
+        account: form.account.trim(),
+        password: form.password,
+        displayName: form.displayName.trim(),
+        email: form.email.trim() || undefined,
+        roles: form.roles,
+        enabled: form.enabled
+      });
+      Message.success(t('adminUsers.userCreated'));
+    }
+    modalVisible.value = false;
+    await loadUsers();
+  } catch (caught) {
+    Message.error(caught instanceof Error ? caught.message : t('adminUsers.saveFailed'));
+  } finally {
+    saving.value = false;
+  }
+}
+
+async function disableUser(user: AdminUserResponse) {
+  try {
+    await api.updateUser(user.userId, {
+      displayName: user.displayName,
+      email: user.email,
+      roles: user.roles,
+      enabled: false
+    });
+    Message.success(t('adminUsers.userDisabled'));
+    await loadUsers();
+  } catch (caught) {
+    Message.error(caught instanceof Error ? caught.message : t('adminUsers.disableFailed'));
+  }
+}
+
+onMounted(async () => {
+  try {
+    await loadRoles();
+  } catch (caught) {
+    error.value = caught instanceof Error ? caught.message : t('adminUsers.loadRolesFailed');
+  }
+  await loadUsers();
+});
+</script>

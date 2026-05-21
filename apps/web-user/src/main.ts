@@ -1,0 +1,62 @@
+import { createApp } from 'vue';
+import { createPinia } from 'pinia';
+import {
+  Alert,
+  Button,
+  Card,
+  Divider,
+  Empty,
+  Form,
+  FormItem,
+  Input,
+  InputPassword,
+  InputSearch,
+  Option,
+  Select,
+  Space,
+  Spin,
+  Statistic,
+  Table,
+  TableColumn,
+  Tag,
+  Textarea
+} from '@arco-design/web-vue';
+import '@arco-design/web-vue/dist/arco.css';
+import { installI18n } from '@aioj/i18n';
+import App from './App.vue';
+import router from './router';
+import './styles/tokens.css';
+import './styles/global.css';
+import './styles/layout.css';
+import './styles.css';
+
+const app = createApp(App);
+
+Object.entries({
+  'a-alert': Alert,
+  'a-button': Button,
+  'a-card': Card,
+  'a-divider': Divider,
+  'a-empty': Empty,
+  'a-form': Form,
+  'a-form-item': FormItem,
+  'a-input': Input,
+  'a-input-password': InputPassword,
+  'a-input-search': InputSearch,
+  'a-option': Option,
+  'a-select': Select,
+  'a-space': Space,
+  'a-spin': Spin,
+  'a-statistic': Statistic,
+  'a-table': Table,
+  'a-table-column': TableColumn,
+  'a-tag': Tag,
+  'a-textarea': Textarea
+}).forEach(([name, component]) => {
+  app.component(name, component);
+});
+
+app.use(createPinia());
+installI18n(app);
+app.use(router);
+app.mount('#app');

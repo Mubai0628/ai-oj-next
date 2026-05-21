@@ -1,0 +1,1 @@
+﻿{"version":"smoke-v1","cases":[{"input":"cases/1.in","sample":true,"name":"sample-1","score":100,"output":"cases/1.out"}]}
