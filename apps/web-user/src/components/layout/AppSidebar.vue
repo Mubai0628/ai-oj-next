@@ -14,14 +14,6 @@
         <span class="sidebar-label">{{ item.label }}</span>
       </router-link>
     </nav>
-
-    <div class="sidebar-user">
-      <span class="app-avatar">{{ initial }}</span>
-      <span class="sidebar-user-copy">
-        <strong>{{ displayName }}</strong>
-        <small>{{ roleLabel }}</small>
-      </span>
-    </div>
   </aside>
 </template>
 
@@ -36,9 +28,6 @@ defineProps<{
   items: SidebarItem[];
   subtitle: string;
   navLabel: string;
-  displayName: string;
-  roleLabel: string;
-  initial: string;
 }>();
 </script>
 
@@ -134,43 +123,13 @@ defineProps<{
   font-weight: 900;
 }
 
-.sidebar-user {
-  margin-top: auto;
-  display: grid;
-  justify-items: center;
-  gap: 7px;
-  padding-top: 18px;
-}
-
-.sidebar-user-copy {
-  display: grid;
-  justify-items: center;
-  gap: 1px;
-  min-width: 0;
-}
-
-.sidebar-user-copy strong {
-  max-width: 92px;
-  overflow: hidden;
-  color: var(--color-text-secondary);
-  font-size: 12px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.sidebar-user-copy small {
-  color: var(--color-text-muted);
-  font-size: 11px;
-}
-
 @media (max-width: 1024px) {
   .sidebar-brand {
     justify-items: center;
   }
 
   .brand-copy small,
-  .sidebar-label,
-  .sidebar-user-copy {
+  .sidebar-label {
     display: none;
   }
 
@@ -202,7 +161,7 @@ defineProps<{
   }
 
   .sidebar-nav {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
     gap: 6px;
     margin-top: 0;
   }
@@ -214,8 +173,7 @@ defineProps<{
     padding: 0 4px;
   }
 
-  .sidebar-link.router-link-active::before,
-  .sidebar-user {
+  .sidebar-link.router-link-active::before {
     display: none;
   }
 
