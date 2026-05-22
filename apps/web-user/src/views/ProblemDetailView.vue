@@ -50,15 +50,14 @@
       </template>
     </SplitPane>
 
-    <AiAssistantDrawer
+    <AiAssistantWorkspaceDrawer
       v-model:open="aiDrawerOpen"
-      v-model:prompt="guidancePrompt"
-      :answer="guidanceAnswer"
-      :loading="guidanceLoading"
-      :error="guidanceError"
-      @ask="askGuidance"
-      @quick="setQuickPrompt"
-      @clear-error="guidanceError = ''"
+      v-model:selected-conversation-id="aiSelectedConversationId"
+      v-model:mode="aiMode"
+      v-model:input="aiPrompt"
+      v-model:sending="aiSending"
+      v-model:error="aiError"
+      :problem="problem"
     />
 
     <ConfirmDialog
@@ -87,15 +86,16 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Message } from '@arco-design/web-vue';
-import { api, streamAi } from '@aioj/api-client';
+import { api } from '@aioj/api-client';
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue';
 import EmptyState from '@/components/common/EmptyState.vue';
-import AiAssistantDrawer from '@/components/problem/AiAssistantDrawer.vue';
+import AiAssistantWorkspaceDrawer from '@/components/ai/AiAssistantWorkspaceDrawer.vue';
 import EditorPane from '@/components/problem/EditorPane.vue';
 import LoadingSkeleton from '@/components/problem/LoadingSkeleton.vue';
 import ProblemHeader from '@/components/problem/ProblemHeader.vue';
 import ProblemPane from '@/components/problem/ProblemPane.vue';
 import SplitPane from '@/components/problem/SplitPane.vue';
+import type { AiMode } from '@/types/ai-assistant';
 import {
   adaptProblem,
   adaptSubmitResult,
@@ -125,12 +125,12 @@ const confirmResetOpen = ref(false);
 const draftStatus = ref('');
 const cursor = reactive<EditorCursorState>({ line: 1, column: 1 });
 const submission = reactive({ code: '' });
-const guidancePrompt = ref('');
-const guidanceAnswer = ref('');
-const guidanceError = ref('');
-const guidanceLoading = ref(false);
-const guidanceConversationId = ref<string>();
 const aiDrawerOpen = ref(false);
+const aiSelectedConversationId = ref<string>();
+const aiMode = ref<AiMode>('hint');
+const aiPrompt = ref('');
+const aiSending = ref(false);
+const aiError = ref('');
 
 function defaultStarter(language: string) {
   const comment = t('problems.starterComment');
@@ -181,14 +181,6 @@ function templateFor(language: string) {
 
 function draftKey(language: string) {
   return `aioj.problemDraft:${problemId.value}:${language}`;
-}
-
-function aiPromptKey() {
-  return `ai-oj:problem-ai-prompt:${problemId.value}`;
-}
-
-function restoreAiPrompt() {
-  guidancePrompt.value = window.localStorage.getItem(aiPromptKey()) || t('problems.guidancePrompt');
 }
 
 function loadDraft(language: string) {
@@ -264,10 +256,8 @@ async function loadProblem() {
     problem.value = adaptProblem(await api.problem(problemId.value));
     activeTab.value = 'statement';
     restoreCode();
-    restoreAiPrompt();
-    guidanceAnswer.value = '';
-    guidanceError.value = '';
-    guidanceConversationId.value = undefined;
+    aiSelectedConversationId.value = undefined;
+    aiError.value = '';
   } catch (err) {
     error.value = err instanceof Error ? err.message : t('problems.loadFailed');
   } finally {
@@ -304,54 +294,9 @@ async function submitCode() {
   }
 }
 
-function captureConversationId(data: string) {
-  try {
-    const payload = JSON.parse(data) as { conversationId?: string };
-    if (payload.conversationId) guidanceConversationId.value = payload.conversationId;
-  } catch {
-    if (data) guidanceConversationId.value = data;
-  }
-}
-
-function setQuickPrompt(value: string) {
-  guidancePrompt.value = value;
-}
-
-async function askGuidance() {
-  if (!problem.value || !guidancePrompt.value.trim()) {
-    Message.warning(t('ai.enterQuestion'));
-    return;
-  }
-  guidanceLoading.value = true;
-  guidanceAnswer.value = '';
-  guidanceError.value = '';
-  const message = t('problems.tutorMessage', {
-    id: problem.value.id,
-    title: problem.value.title,
-    request: guidancePrompt.value.trim()
-  });
-  try {
-    await streamAi({ conversationId: guidanceConversationId.value, problemId: problem.value.id, message }, (event, data) => {
-      if (event === 'meta') captureConversationId(data);
-      if (event === 'message') guidanceAnswer.value += data;
-      if (event === 'error') guidanceError.value = data || t('problems.guidanceUnavailable');
-    });
-  } catch (err) {
-    guidanceError.value = err instanceof Error ? err.message : t('problems.guidanceUnavailable');
-  } finally {
-    guidanceLoading.value = false;
-  }
-}
-
 watch(() => props.id, loadProblem);
-watch(guidancePrompt, (value) => {
-  if (problemId.value) {
-    window.localStorage.setItem(aiPromptKey(), value);
-  }
-});
 
 onMounted(() => {
-  restoreAiPrompt();
   restoreCode();
   loadProblem();
 });

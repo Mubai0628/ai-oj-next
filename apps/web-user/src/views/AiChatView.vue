@@ -1,216 +1,354 @@
 <template>
-  <section class="page-stack">
-    <PageHeader :eyebrow="t('ai.eyebrow')" :title="t('ai.title')" :description="t('ai.tutorCopy')">
+  <section class="page-stack ai-history-page">
+    <PageHeader :eyebrow="t('ai.eyebrow')" :title="t('ai.title')" :description="t('aiAssistant.historyPageCopy')">
       <template #actions>
-        <a-tag v-if="conversationId">{{ t('ai.conversation', { id: conversationId.slice(0, 8) }) }}</a-tag>
         <a-button @click="newConversation">{{ t('ai.newChat') }}</a-button>
       </template>
     </PageHeader>
 
     <a-alert v-if="error" type="error" closable @close="error = ''">{{ error }}</a-alert>
 
-    <section class="chat-layout">
-      <aside class="chat-side">
-        <div class="chat-side__title">
-          <h2>{{ t('ai.context') }}</h2>
-          <a-button size="small" @click="newConversation">{{ t('ai.newChat') }}</a-button>
-        </div>
-        <p class="muted">{{ t('ai.contextCopy') }}</p>
-        <a-select v-model="problemIdText" allow-clear :placeholder="t('ai.attachProblem')" class="full-width">
-          <a-option value="">{{ t('ai.noProblem') }}</a-option>
-          <a-option v-for="problem in problems" :key="problem.id" :value="String(problem.id)">
-            #{{ problem.id }} {{ problem.title }}
-          </a-option>
-        </a-select>
+    <section class="ai-tutor-workspace">
+      <aside class="ai-tutor-list-panel">
+        <div class="ai-history-filter">
+          <label>
+            <span>{{ t('aiAssistant.problemFilter') }}</span>
+            <a-select v-model="problemFilter" class="full-width">
+              <a-option value="__all__">{{ t('aiAssistant.allProblems') }}</a-option>
+              <a-option value="__none__">{{ t('aiAssistant.unlinkedProblem') }}</a-option>
+              <a-option v-for="filter in linkedProblemFilters" :key="filter.problemId" :value="String(filter.problemId)">
+                {{ filter.problemTitle || `#${filter.problemId}` }} · {{ t('aiAssistant.conversationCount', { count: filter.count }) }}
+              </a-option>
+            </a-select>
+          </label>
 
-        <div class="conversation-list">
-          <div class="conversation-item active">
-            <strong>{{ selectedProblem?.title || t('ai.currentSession') }}</strong>
-            <span>{{ selectedProblem ? preview(selectedProblem.statement) : t('ai.tutorCopy') }}</span>
-          </div>
-        </div>
+          <label>
+            <span>{{ t('aiAssistant.modeFilter') }}</span>
+            <a-select v-model="modeFilter" class="full-width">
+              <a-option value="all">{{ t('common.all') }}</a-option>
+              <a-option value="hint">{{ t('aiAssistant.modes.hint') }}</a-option>
+              <a-option value="debug">{{ t('aiAssistant.modes.debug') }}</a-option>
+              <a-option value="edge">{{ t('aiAssistant.modes.edge') }}</a-option>
+              <a-option value="optimize">{{ t('aiAssistant.modes.optimize') }}</a-option>
+            </a-select>
+          </label>
 
-        <h2>{{ t('ai.history') }}</h2>
-        <div class="conversation-list">
-          <button class="conversation-item" type="button" @click="newConversation">
-            <strong>{{ t('ai.newChat') }}</strong>
-            <span>{{ t('ai.historyEmpty') }}</span>
-          </button>
-        </div>
-      </aside>
-
-      <section class="chat-main">
-        <div class="chat-main-header">
-          <div>
-            <h2>{{ t('ai.title') }}</h2>
-            <p class="muted">{{ selectedProblem ? selectedProblem.title : t('ai.noProblem') }}</p>
-          </div>
-          <StatusChip :label="waiting ? t('ai.thinking') : t('common.ready')" :tone="waiting ? 'primary' : 'success'" />
+          <a-input v-model="keyword" :placeholder="t('aiAssistant.searchPlaceholder')" allow-clear />
+          <a-button @click="resetFilters">{{ t('submissions.resetFilters') }}</a-button>
         </div>
 
-        <div class="chat-log">
-          <EmptyState v-if="!messages.length" :title="t('ai.emptyTitle')" :description="t('ai.empty')">
-            <div class="quick-prompts">
-              <button v-for="prompt in quickPrompts" :key="prompt" type="button" @click="useQuickPrompt(prompt)">
-                {{ prompt }}
-              </button>
-            </div>
-          </EmptyState>
-          <div v-for="(message, index) in messages" :key="index" class="chat-message" :class="message.role">
-            <strong>{{ message.role === 'user' ? t('ai.you') : t('ai.tutor') }}</strong>
-            <p v-if="message.content">{{ message.content }}</p>
-            <p v-else class="muted">{{ streaming ? t('ai.streaming') : t('ai.thinking') }}</p>
-          </div>
-        </div>
-
-        <div class="composer-shell">
-          <p>{{ t('ai.inputNotice') }}</p>
-          <div class="composer">
-          <a-textarea
-            ref="inputRef"
-            v-model="input"
-            :auto-size="{ minRows: 2, maxRows: 6 }"
-            :placeholder="t('ai.placeholder')"
-            @keydown="handleInputKeydown"
+        <div class="ai-history-list">
+          <EmptyState
+            v-if="!assistant.sortedConversations.length"
+            :title="t('aiAssistant.allHistoryEmptyTitle')"
+            :description="t('aiAssistant.allHistoryEmptyDescription')"
           />
-          <a-button class="send-button" type="primary" :loading="waiting" @click="send">{{ t('ai.send') }}</a-button>
-          </div>
-        </div>
-      </section>
-
-      <aside class="chat-recommend">
-        <h2>{{ t('ai.relatedProblems') }}</h2>
-        <p class="muted">{{ t('ai.relatedCopy') }}</p>
-        <div class="recommend-list">
-          <router-link v-for="problem in relatedProblems" :key="problem.id" class="recommend-item recommend-item--rich" :to="`/problems/${problem.id}`">
-            <strong>{{ problem.title }}</strong>
-            <span>{{ preview(problem.statement) }}</span>
-            <DifficultyChip :difficulty="problem.difficulty" />
-          </router-link>
+          <EmptyState
+            v-else-if="!filteredConversations.length"
+            :title="emptyListTitle"
+            :description="t('aiAssistant.noSearchDescription')"
+          >
+            <button class="ai-empty-action" type="button" @click="resetFilters">{{ t('submissions.resetFilters') }}</button>
+          </EmptyState>
+          <AiConversationCard
+            v-for="conversation in filteredConversations"
+            v-else
+            :key="conversation.id"
+            :conversation="conversation"
+            :active="conversation.id === selectedConversationId"
+            @click="selectConversation(conversation.id)"
+          />
         </div>
       </aside>
+
+      <section class="ai-tutor-detail-panel">
+        <AiProblemContextCard
+          v-if="detailProblemId || detailProblemTitle"
+          :problem-id="detailProblemId"
+          :problem-title="detailProblemTitle"
+          :difficulty="selectedConversation?.problemDifficulty"
+          :tags="selectedConversation?.problemTags"
+        />
+
+        <AiChatPanel
+          :conversation="selectedConversation"
+          :mode="mode"
+          :input="input"
+          :sending="sending"
+          :error="error"
+          :context-label="detailProblemTitle || t('ai.noProblem')"
+          :empty-title="emptyDetailTitle"
+          :empty-description="emptyDetailDescription"
+          @update:mode="setMode"
+          @update:input="input = $event"
+          @send="send"
+          @retry="retryLast"
+          @quick="setQuickPrompt"
+        />
+      </section>
     </section>
   </section>
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Message } from '@arco-design/web-vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { api, streamAi, type ProblemResponse } from '@aioj/api-client';
-import DifficultyChip from '@/components/common/DifficultyChip.vue';
+import AiChatPanel from '@/components/ai/AiChatPanel.vue';
+import AiConversationCard from '@/components/ai/AiConversationCard.vue';
+import AiProblemContextCard from '@/components/ai/AiProblemContextCard.vue';
 import EmptyState from '@/components/common/EmptyState.vue';
 import PageHeader from '@/components/common/PageHeader.vue';
-import StatusChip from '@/components/common/StatusChip.vue';
+import { useAiAssistantStore } from '@/stores/aiAssistant';
+import type { AiConversation, AiMode } from '@/types/ai-assistant';
 
 const route = useRoute();
+const router = useRouter();
 const { t } = useI18n();
-const problems = ref<ProblemResponse[]>([]);
-const problemIdText = ref(typeof route.query.problemId === 'string' ? route.query.problemId : '');
-const conversationId = ref<string>();
-const input = ref('');
-const error = ref('');
-const waiting = ref(false);
-const streaming = ref(false);
-const messages = ref<Array<{ role: 'user' | 'assistant'; content: string }>>([]);
-const inputRef = ref<{ focus?: () => void } | null>(null);
+const assistant = useAiAssistantStore();
 
-const selectedProblem = computed(() => problems.value.find((problem) => String(problem.id) === problemIdText.value));
-const quickPrompts = computed(() => [
-  t('ai.quickStart'),
-  t('ai.quickBoundary'),
-  t('ai.quickWa'),
-  t('ai.quickHintOnly')
-]);
-const relatedProblems = computed(() => {
-  const selected = selectedProblem.value;
-  const candidates = problems.value.filter((problem) => !selected || problem.id !== selected.id);
-  if (!selected?.tags?.length) return candidates.slice(0, 5);
-  return [...candidates]
-    .sort((left, right) => tagOverlap(right, selected) - tagOverlap(left, selected))
-    .slice(0, 5);
+const problems = ref<ProblemResponse[]>([]);
+const problemFilter = ref('__all__');
+const modeFilter = ref<AiMode | 'all'>('all');
+const keyword = ref('');
+const selectedConversationId = ref<string>();
+const input = ref('');
+const mode = ref<AiMode>('hint');
+const sending = ref(false);
+const error = ref('');
+
+const linkedProblemFilters = computed(() => assistant.problemFilters.filter((filter) => filter.problemId !== undefined));
+const selectedConversation = computed(() => assistant.getConversation(selectedConversationId.value));
+const selectedFilterProblem = computed(() => problems.value.find((problem) => String(problem.id) === problemFilter.value));
+const detailProblemId = computed(() => selectedConversation.value?.problemId || selectedFilterProblem.value?.id);
+const detailProblemTitle = computed(() => selectedConversation.value?.problemTitle || selectedFilterProblem.value?.title);
+
+const filteredConversations = computed(() => {
+  const keywordText = keyword.value.trim().toLowerCase();
+  return assistant.sortedConversations.filter((conversation) => {
+    if (problemFilter.value === '__none__' && conversation.problemId !== undefined) return false;
+    if (problemFilter.value !== '__all__' && problemFilter.value !== '__none__' && String(conversation.problemId) !== problemFilter.value) {
+      return false;
+    }
+    if (modeFilter.value !== 'all' && conversation.mode !== modeFilter.value) return false;
+    if (!keywordText) return true;
+    const haystack = [
+      conversation.title,
+      conversation.problemTitle,
+      ...conversation.messages.map((message) => message.content)
+    ].join(' ').toLowerCase();
+    return haystack.includes(keywordText);
+  });
 });
 
-function preview(statement: string) {
-  return statement.replace(/[#*_`]/g, '').replace(/\s+/g, ' ').slice(0, 82) || t('problems.openDetailFallback');
+const emptyListTitle = computed(() => {
+  if (keyword.value.trim()) return t('aiAssistant.noSearchTitle');
+  if (problemFilter.value !== '__all__') return t('aiAssistant.noProblemHistoryTitle');
+  return t('aiAssistant.noSearchTitle');
+});
+const emptyDetailTitle = computed(() => {
+  if (selectedConversation.value) return t('aiAssistant.emptyConversation');
+  if (problemFilter.value !== '__all__') return t('aiAssistant.noProblemHistoryTitle');
+  return t('aiAssistant.allHistoryEmptyTitle');
+});
+const emptyDetailDescription = computed(() => {
+  if (selectedConversation.value) return t('aiAssistant.emptyConversationDescription');
+  if (problemFilter.value !== '__all__') return t('aiAssistant.noProblemHistoryDescription');
+  return t('aiAssistant.allHistoryEmptyDescription');
+});
+
+function makeTitle(text: string) {
+  return text.replace(/\s+/g, ' ').trim().slice(0, 24) || t('aiAssistant.newConversationTitle');
 }
 
-function tagOverlap(problem: ProblemResponse, selected: ProblemResponse) {
-  const selectedTags = new Set(selected.tags);
-  return problem.tags.filter((tag) => selectedTags.has(tag)).length;
+function problemContext() {
+  if (selectedConversation.value?.problemId) {
+    return {
+      problemId: selectedConversation.value.problemId,
+      problemTitle: selectedConversation.value.problemTitle,
+      problemDifficulty: selectedConversation.value.problemDifficulty,
+      problemTags: selectedConversation.value.problemTags
+    };
+  }
+  if (problemFilter.value !== '__all__' && problemFilter.value !== '__none__') {
+    const problem = selectedFilterProblem.value;
+    return {
+      problemId: problemFilter.value,
+      problemTitle: problem?.title,
+      problemDifficulty: problem?.difficulty,
+      problemTags: problem?.tags
+    };
+  }
+  return {};
+}
+
+function ensureConversation(text: string): AiConversation {
+  if (selectedConversation.value) return selectedConversation.value;
+  const context = problemContext();
+  const conversation = assistant.createConversation({
+    ...context,
+    source: 'ai_tutor',
+    mode: mode.value,
+    title: makeTitle(text)
+  });
+  selectedConversationId.value = conversation.id;
+  syncQuery();
+  return conversation;
+}
+
+function buildMessage(text: string, conversation: AiConversation) {
+  if (conversation.problemId) {
+    return t('aiAssistant.problemTutorMessage', {
+      id: conversation.problemId,
+      title: conversation.problemTitle || '',
+      mode: t(`aiAssistant.modes.${mode.value}`),
+      request: text
+    });
+  }
+  return t('ai.tutorGeneral', { text });
+}
+
+function captureRemoteConversationId(conversationId: string, data: string) {
+  try {
+    const payload = JSON.parse(data) as { conversationId?: string };
+    if (payload.conversationId) assistant.updateConversation(conversationId, { remoteConversationId: payload.conversationId });
+  } catch {
+    if (data) assistant.updateConversation(conversationId, { remoteConversationId: data });
+  }
+}
+
+function selectConversation(conversationId: string) {
+  selectedConversationId.value = conversationId;
+  const conversation = assistant.getConversation(conversationId);
+  if (conversation) mode.value = conversation.mode;
+  syncQuery();
 }
 
 function newConversation() {
-  conversationId.value = undefined;
-  messages.value = [];
+  selectedConversationId.value = undefined;
   input.value = '';
   error.value = '';
+  syncQuery();
 }
 
-async function useQuickPrompt(prompt: string) {
-  input.value = prompt;
-  await nextTick();
-  inputRef.value?.focus?.();
+function setMode(value: AiMode) {
+  mode.value = value;
+  if (selectedConversationId.value) assistant.updateConversation(selectedConversationId.value, { mode: value });
 }
 
-function handleInputKeydown(event: KeyboardEvent) {
-  if (event.key === 'Enter' && !event.shiftKey) {
-    event.preventDefault();
-    void send();
-  }
-}
-
-function captureConversationId(data: string) {
-  try {
-    const payload = JSON.parse(data) as { conversationId?: string };
-    if (payload.conversationId) conversationId.value = payload.conversationId;
-  } catch {
-    if (data) conversationId.value = data;
-  }
+function setQuickPrompt(value: string) {
+  input.value = value;
 }
 
 async function send() {
   const text = input.value.trim();
-  if (!text) {
-    Message.warning(t('ai.enterQuestion'));
+  if (!text || sending.value) {
+    if (!text) Message.warning(t('ai.enterQuestion'));
     return;
   }
-  const problemId = problemIdText.value || undefined;
-  messages.value.push({ role: 'user', content: text });
-  const assistant = { role: 'assistant' as const, content: '' };
-  messages.value.push(assistant);
+  const conversation = ensureConversation(text);
   input.value = '';
   error.value = '';
-  waiting.value = true;
-  streaming.value = false;
-  const tutoringMessage = problemId
-    ? t('ai.tutorWithProblem', { problemId, text })
-    : t('ai.tutorGeneral', { text });
+  sending.value = true;
+
+  assistant.appendMessage(conversation.id, {
+    problemId: conversation.problemId,
+    role: 'user',
+    content: text,
+    status: 'success'
+  });
+  const assistantMessage = assistant.appendMessage(conversation.id, {
+    problemId: conversation.problemId,
+    role: 'assistant',
+    content: '',
+    status: 'sending'
+  });
+  let content = '';
 
   try {
-    await streamAi({ conversationId: conversationId.value, problemId, message: tutoringMessage }, (event, data) => {
-      if (event === 'meta') captureConversationId(data);
-      if (event === 'message') {
-        streaming.value = true;
-        assistant.content += data;
+    await streamAi(
+      {
+        conversationId: assistant.getConversation(conversation.id)?.remoteConversationId,
+        problemId: conversation.problemId,
+        message: buildMessage(text, conversation)
+      },
+      (event, data) => {
+        if (event === 'meta') captureRemoteConversationId(conversation.id, data);
+        if (event === 'message' && assistantMessage) {
+          content += data;
+          assistant.updateMessage(conversation.id, assistantMessage.id, { content, status: 'sending' });
+        }
+        if (event === 'error' && assistantMessage) {
+          error.value = data || t('ai.streamError');
+          assistant.updateMessage(conversation.id, assistantMessage.id, {
+            content: content || error.value,
+            status: 'error'
+          });
+        }
+        if (event === 'done' && assistantMessage) {
+          assistant.updateMessage(conversation.id, assistantMessage.id, { content, status: 'success' });
+        }
       }
-      if (event === 'error' && !assistant.content) {
-        error.value = data || t('ai.streamError');
-      }
-      if (event === 'done') {
-        streaming.value = false;
-      }
-    });
+    );
+    if (assistantMessage && content) {
+      assistant.updateMessage(conversation.id, assistantMessage.id, { content, status: 'success' });
+    }
   } catch (err) {
-    if (!assistant.content.trim()) {
-      error.value = err instanceof Error ? err.message : t('ai.chatFailed');
-      assistant.content = error.value;
+    error.value = err instanceof Error ? err.message : t('ai.chatFailed');
+    if (assistantMessage) {
+      assistant.updateMessage(conversation.id, assistantMessage.id, {
+        content: content || error.value,
+        status: 'error'
+      });
     }
   } finally {
-    waiting.value = false;
-    streaming.value = false;
+    sending.value = false;
   }
+}
+
+function retryLast() {
+  const latestUserMessage = [...(selectedConversation.value?.messages || [])]
+    .reverse()
+    .find((message) => message.role === 'user');
+  if (latestUserMessage) {
+    input.value = latestUserMessage.content;
+    void send();
+  }
+}
+
+function resetFilters() {
+  problemFilter.value = '__all__';
+  modeFilter.value = 'all';
+  keyword.value = '';
+  ensureSelection();
+}
+
+function syncQuery() {
+  const query: Record<string, string> = {};
+  if (problemFilter.value !== '__all__') query.problemId = problemFilter.value === '__none__' ? '__none__' : problemFilter.value;
+  if (selectedConversationId.value) query.conversationId = selectedConversationId.value;
+  void router.replace({ query });
+}
+
+function applyQuery() {
+  const queryProblemId = typeof route.query.problemId === 'string' ? route.query.problemId : '';
+  const queryConversationId = typeof route.query.conversationId === 'string' ? route.query.conversationId : '';
+  problemFilter.value = queryProblemId || '__all__';
+  selectedConversationId.value = queryConversationId || undefined;
+  ensureSelection();
+}
+
+function ensureSelection() {
+  if (selectedConversationId.value && filteredConversations.value.some((conversation) => conversation.id === selectedConversationId.value)) {
+    const conversation = assistant.getConversation(selectedConversationId.value);
+    if (conversation) mode.value = conversation.mode;
+    return;
+  }
+  const latest = filteredConversations.value[0];
+  selectedConversationId.value = latest?.id;
+  mode.value = latest?.mode || 'hint';
 }
 
 async function loadProblems() {
@@ -222,5 +360,19 @@ async function loadProblems() {
   }
 }
 
-onMounted(loadProblems);
+watch([problemFilter, modeFilter, keyword], () => {
+  ensureSelection();
+  syncQuery();
+});
+
+watch(
+  () => route.query,
+  () => applyQuery()
+);
+
+onMounted(async () => {
+  assistant.load();
+  await loadProblems();
+  applyQuery();
+});
 </script>

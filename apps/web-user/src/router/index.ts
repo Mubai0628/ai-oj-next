@@ -25,6 +25,7 @@ const routes: RouteRecordRaw[] = [
       { path: 'problems/:id', name: 'problem-detail', component: () => import('@/views/ProblemDetailView.vue'), props: true },
       { path: 'submissions', name: 'submissions', component: () => import('@/views/SubmissionsView.vue') },
       { path: 'ai-chat', name: 'ai-chat', component: () => import('@/views/AiChatView.vue') },
+      { path: 'ai-tutor', name: 'ai-tutor', component: () => import('@/views/AiChatView.vue') },
       { path: 'profile', name: 'profile', component: () => import('@/views/ProfileView.vue') }
     ]
   },
