@@ -1,6 +1,6 @@
 <template>
   <section class="ai-hint-card">
-    <header class="ai-hint-card__header">
+    <header v-if="showHeader" class="ai-hint-card__header">
       <div>
         <h2 class="ai-hint-card__title">{{ t('problems.aiGuidance') }}</h2>
         <p>{{ t('problems.aiGuidanceCopy') }}</p>
@@ -49,12 +49,15 @@
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-defineProps<{
+withDefaults(defineProps<{
   prompt: string;
   answer: string;
   loading: boolean;
   error: string;
-}>();
+  showHeader?: boolean;
+}>(), {
+  showHeader: true
+});
 
 defineEmits<{
   'update:prompt': [value: string];
@@ -69,6 +72,7 @@ const quickPrompts = computed(() => [
   t('problems.quickIdea'),
   t('problems.quickAlgorithm'),
   t('problems.quickBoundary'),
+  t('problems.quickWa'),
   t('problems.quickOptimize')
 ]);
 </script>

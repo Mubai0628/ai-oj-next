@@ -40,6 +40,11 @@ export interface SubmitResultView {
 }
 
 export type ProblemTabKey = 'statement' | 'samples' | 'notes' | 'related';
+export type SplitPaneRatio = number;
+
+export interface AiDrawerState {
+  open: boolean;
+}
 
 export function adaptProblem(problem: ProblemResponse): ProblemDetailModel {
   return {

@@ -5,9 +5,12 @@
         <h2 class="solve-card__title">{{ t('problems.submitSolution') }}</h2>
         <p>{{ t('problems.codeStarter') }}</p>
       </div>
-      <a-select :model-value="language" :disabled="submitting" class="solve-language-select" @update:model-value="onLanguageChange">
-        <a-option v-for="item in languages" :key="item.value" :value="item.value">{{ item.label }}</a-option>
-      </a-select>
+      <div class="solve-card__actions">
+        <button class="ai-open-button" type="button" @click="$emit('open-ai')">{{ t('problems.openAiAssistant') }}</button>
+        <a-select :model-value="language" :disabled="submitting" class="solve-language-select" @update:model-value="onLanguageChange">
+          <a-option v-for="item in languages" :key="item.value" :value="item.value">{{ item.label }}</a-option>
+        </a-select>
+      </div>
     </header>
 
     <CodeEditorShell
@@ -86,6 +89,7 @@ const emit = defineEmits<{
   'save-draft': [];
   'reset-code': [];
   'clear-message': [];
+  'open-ai': [];
 }>();
 
 const { t } = useI18n();

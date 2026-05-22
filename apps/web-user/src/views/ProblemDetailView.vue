@@ -16,58 +16,19 @@
       <router-link to="/problems" class="workspace-button workspace-button--ghost">{{ t('problems.backToList') }}</router-link>
     </EmptyState>
 
-    <section v-else class="problem-workspace">
-      <article class="problem-card">
-        <div class="problem-card__intro">
-          <span class="problem-id">#{{ problem.id }}</span>
-          <div class="problem-card__intro-main">
-            <h2>{{ problem.title }}</h2>
-            <DifficultyChip :difficulty="problem.difficulty" />
-          </div>
-          <ProblemMetaChips :problem="problem" />
-        </div>
+    <SplitPane v-else @reset="onSplitReset">
+      <template #left>
+        <ProblemPane
+          :problem="problem"
+          :active-tab="activeTab"
+          :statement-html="statementHtml"
+          @update:active-tab="activeTab = $event"
+          @copy-sample="copySample"
+        />
+      </template>
 
-        <ProblemTabs v-model="activeTab" />
-
-        <section v-if="activeTab === 'statement'" class="problem-tab-panel">
-          <div class="markdown-body problem-statement" v-html="statementHtml" />
-        </section>
-
-        <section v-else-if="activeTab === 'samples'" class="problem-tab-panel">
-          <EmptyState v-if="!problem.samples.length" :description="t('problems.noSamples')" />
-          <div v-else class="sample-list">
-            <SampleCaseCard
-              v-for="(sample, index) in problem.samples"
-              :key="`${index}-${sample.input}-${sample.output}`"
-              :sample="sample"
-              :index="index + 1"
-              @copy="copySample"
-            />
-          </div>
-        </section>
-
-        <section v-else-if="activeTab === 'notes'" class="problem-tab-panel">
-          <div class="problem-section">
-            <h3 class="problem-section__title">{{ t('problems.notesTitle') }}</h3>
-            <p class="problem-section__content">{{ t('problems.notesCopy') }}</p>
-          </div>
-          <div class="problem-section">
-            <h3 class="problem-section__title">{{ t('problems.limits') }}</h3>
-            <div class="problem-note-grid">
-              <span>{{ t('problems.timeLimit') }}<strong>{{ problem.timeLimitMillis }} ms</strong></span>
-              <span>{{ t('problems.memoryLimit') }}<strong>{{ problem.memoryLimitMb }} MB</strong></span>
-              <span>{{ t('common.created') }}<strong>{{ formatDate(problem.createdAt) }}</strong></span>
-            </div>
-          </div>
-        </section>
-
-        <section v-else class="problem-tab-panel">
-          <EmptyState :title="t('problems.relatedEmptyTitle')" :description="t('problems.relatedEmptyDescription')" />
-        </section>
-      </article>
-
-      <aside class="solve-panel">
-        <CodeSubmitPanel
+      <template #right>
+        <EditorPane
           :languages="languages"
           :language="selectedLanguage"
           :code="submission.code"
@@ -84,19 +45,21 @@
           @save-draft="saveDraft"
           @reset-code="confirmResetOpen = true"
           @clear-message="submitState.message = ''"
+          @open-ai="aiDrawerOpen = true"
         />
+      </template>
+    </SplitPane>
 
-        <AiHintPanel
-          v-model:prompt="guidancePrompt"
-          :answer="guidanceAnswer"
-          :loading="guidanceLoading"
-          :error="guidanceError"
-          @ask="askGuidance"
-          @quick="setQuickPrompt"
-          @clear-error="guidanceError = ''"
-        />
-      </aside>
-    </section>
+    <AiAssistantDrawer
+      v-model:open="aiDrawerOpen"
+      v-model:prompt="guidancePrompt"
+      :answer="guidanceAnswer"
+      :loading="guidanceLoading"
+      :error="guidanceError"
+      @ask="askGuidance"
+      @quick="setQuickPrompt"
+      @clear-error="guidanceError = ''"
+    />
 
     <ConfirmDialog
       v-model:open="confirmLanguageOpen"
@@ -126,15 +89,13 @@ import { useI18n } from 'vue-i18n';
 import { Message } from '@arco-design/web-vue';
 import { api, streamAi } from '@aioj/api-client';
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue';
-import DifficultyChip from '@/components/common/DifficultyChip.vue';
 import EmptyState from '@/components/common/EmptyState.vue';
-import AiHintPanel from '@/components/problem/AiHintPanel.vue';
-import CodeSubmitPanel from '@/components/problem/CodeSubmitPanel.vue';
+import AiAssistantDrawer from '@/components/problem/AiAssistantDrawer.vue';
+import EditorPane from '@/components/problem/EditorPane.vue';
 import LoadingSkeleton from '@/components/problem/LoadingSkeleton.vue';
 import ProblemHeader from '@/components/problem/ProblemHeader.vue';
-import ProblemMetaChips from '@/components/problem/ProblemMetaChips.vue';
-import ProblemTabs from '@/components/problem/ProblemTabs.vue';
-import SampleCaseCard from '@/components/problem/SampleCaseCard.vue';
+import ProblemPane from '@/components/problem/ProblemPane.vue';
+import SplitPane from '@/components/problem/SplitPane.vue';
 import {
   adaptProblem,
   adaptSubmitResult,
@@ -169,6 +130,7 @@ const guidanceAnswer = ref('');
 const guidanceError = ref('');
 const guidanceLoading = ref(false);
 const guidanceConversationId = ref<string>();
+const aiDrawerOpen = ref(false);
 
 function defaultStarter(language: string) {
   const comment = t('problems.starterComment');
@@ -219,6 +181,14 @@ function templateFor(language: string) {
 
 function draftKey(language: string) {
   return `aioj.problemDraft:${problemId.value}:${language}`;
+}
+
+function aiPromptKey() {
+  return `ai-oj:problem-ai-prompt:${problemId.value}`;
+}
+
+function restoreAiPrompt() {
+  guidancePrompt.value = window.localStorage.getItem(aiPromptKey()) || t('problems.guidancePrompt');
 }
 
 function loadDraft(language: string) {
@@ -277,14 +247,13 @@ function updateCursor(value: EditorCursorState) {
   cursor.column = value.column;
 }
 
-function formatDate(value?: string) {
-  if (!value) return '-';
-  return new Date(value).toLocaleString();
-}
-
 async function copySample(value: string) {
   await navigator.clipboard.writeText(value);
   Message.success(t('problems.sampleCopied'));
+}
+
+function onSplitReset() {
+  Message.success(t('problems.layoutReset'));
 }
 
 async function loadProblem() {
@@ -295,6 +264,10 @@ async function loadProblem() {
     problem.value = adaptProblem(await api.problem(problemId.value));
     activeTab.value = 'statement';
     restoreCode();
+    restoreAiPrompt();
+    guidanceAnswer.value = '';
+    guidanceError.value = '';
+    guidanceConversationId.value = undefined;
   } catch (err) {
     error.value = err instanceof Error ? err.message : t('problems.loadFailed');
   } finally {
@@ -371,9 +344,14 @@ async function askGuidance() {
 }
 
 watch(() => props.id, loadProblem);
+watch(guidancePrompt, (value) => {
+  if (problemId.value) {
+    window.localStorage.setItem(aiPromptKey(), value);
+  }
+});
 
 onMounted(() => {
-  guidancePrompt.value = t('problems.guidancePrompt');
+  restoreAiPrompt();
   restoreCode();
   loadProblem();
 });
