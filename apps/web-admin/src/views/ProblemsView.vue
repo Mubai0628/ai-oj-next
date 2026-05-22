@@ -59,65 +59,29 @@
       <a-empty v-if="!loading && problems.length === 0" :description="t('problems.adminEmpty')" />
     </a-card>
 
-    <ProblemEditorDrawer
-      v-model:visible="modalVisible"
-      :editing-id="editingId"
-      :form="form"
-      :tag-text="tagText"
-      :memory-limit-mb="memoryLimitMb"
-      :difficulties="difficulties"
-      :saving="saving"
-      :difficulty-label="difficultyLabel"
-      @update:tag-text="tagText = $event"
-      @update:memory-limit-mb="memoryLimitMb = $event"
-      @add-case="addCase"
-      @remove-case="removeCase"
-      @save="saveProblem"
-    />
+    <ProblemEditorDrawer v-model:visible="editorVisible" :problem="selectedProblem" @saved="loadProblems" />
   </section>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue';
+import { onMounted, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Message } from '@arco-design/web-vue';
-import { api, type Difficulty, type EntityId, type ProblemPayload, type ProblemResponse, type TestCaseDto } from '@aioj/api-client';
+import { api, type Difficulty, type EntityId, type ProblemResponse } from '@aioj/api-client';
 import ProblemEditorDrawer from '@/components/ProblemEditorDrawer.vue';
 
 const { t } = useI18n();
 const difficulties: Difficulty[] = ['EASY', 'MEDIUM', 'HARD', 'CHALLENGE'];
 const loading = ref(false);
-const saving = ref(false);
 const error = ref('');
 const problems = ref<ProblemResponse[]>([]);
-const modalVisible = ref(false);
-const editingId = ref<EntityId | null>(null);
-const tagText = ref('');
+const editorVisible = ref(false);
+const selectedProblem = ref<ProblemResponse | null>(null);
 const filters = reactive<{ keyword: string; difficulty: Difficulty | ''; tag: string }>({
   keyword: '',
   difficulty: '',
   tag: ''
 });
-const form = reactive<ProblemPayload>({
-  title: '',
-  difficulty: 'EASY',
-  statement: '',
-  tags: [],
-  testCases: [emptyCase()],
-  timeLimitMillis: 1000,
-  memoryLimitKb: 262144
-});
-
-const memoryLimitMb = computed({
-  get: () => Math.round(form.memoryLimitKb / 1024),
-  set: (value: number) => {
-    form.memoryLimitKb = Number(value || 0) * 1024;
-  }
-});
-
-function emptyCase(): TestCaseDto {
-  return { input: '', expectedOutput: '', sample: true };
-}
 
 function difficultyColor(difficulty: Difficulty) {
   return ({ EASY: 'green', MEDIUM: 'orange', HARD: 'red', CHALLENGE: 'purple' } as Record<Difficulty, string>)[difficulty];
@@ -132,68 +96,14 @@ function shortId(id: EntityId) {
   return text.length > 8 ? text.slice(-8) : text;
 }
 
-function tagsFromText() {
-  return tagText.value.split(',').map((tag) => tag.trim()).filter(Boolean);
-}
-
-function resetForm() {
-  editingId.value = null;
-  form.title = '';
-  form.difficulty = 'EASY';
-  form.statement = '';
-  form.tags = [];
-  form.testCases = [emptyCase()];
-  form.timeLimitMillis = 1000;
-  form.memoryLimitKb = 262144;
-  tagText.value = '';
-}
-
 function openCreate() {
-  resetForm();
-  modalVisible.value = true;
+  selectedProblem.value = null;
+  editorVisible.value = true;
 }
 
-async function openEdit(problem: ProblemResponse) {
-  saving.value = false;
-  try {
-    const detail = await api.problem(problem.id);
-    editingId.value = detail.id;
-    form.title = detail.title;
-    form.difficulty = detail.difficulty;
-    form.statement = detail.statement;
-    form.tags = [...detail.tags];
-    form.testCases = detail.samples.length ? detail.samples.map((item) => ({ ...item })) : [emptyCase()];
-    form.timeLimitMillis = detail.timeLimitMillis;
-    form.memoryLimitKb = detail.memoryLimitKb;
-    tagText.value = detail.tags.join(', ');
-    modalVisible.value = true;
-  } catch (caught) {
-    Message.error(caught instanceof Error ? caught.message : t('problems.loadOneFailed'));
-  }
-}
-
-function addCase() {
-  form.testCases.push({ input: '', expectedOutput: '', sample: false });
-}
-
-function removeCase(index: number) {
-  form.testCases.splice(index, 1);
-}
-
-function payload(): ProblemPayload {
-  return {
-    title: form.title.trim(),
-    difficulty: form.difficulty,
-    statement: form.statement.trim(),
-    tags: tagsFromText(),
-    testCases: form.testCases.map((testCase, index) => ({
-      input: testCase.input,
-      expectedOutput: testCase.expectedOutput,
-      sample: index === 0 ? true : testCase.sample
-    })),
-    timeLimitMillis: Number(form.timeLimitMillis || 1000),
-    memoryLimitKb: Number(form.memoryLimitKb || 262144)
-  };
+function openEdit(problem: ProblemResponse) {
+  selectedProblem.value = problem;
+  editorVisible.value = true;
 }
 
 async function loadProblems() {
@@ -206,44 +116,6 @@ async function loadProblems() {
   } finally {
     loading.value = false;
   }
-}
-
-async function saveProblem() {
-  const problemPayload = payload();
-  const validationError = validatePayload(problemPayload);
-  if (validationError) {
-    Message.error(validationError);
-    return;
-  }
-  if (problemPayload.testCases.some((testCase) => !testCase.input.trim() || !testCase.expectedOutput.trim())) {
-    Message.warning(t('problems.emptySampleWarning'));
-  }
-  saving.value = true;
-  try {
-    if (editingId.value) {
-      await api.updateProblem(editingId.value, problemPayload);
-      Message.success(t('problems.updated'));
-    } else {
-      await api.createProblem(problemPayload);
-      Message.success(t('problems.created'));
-    }
-    modalVisible.value = false;
-    await loadProblems();
-  } catch (caught) {
-    Message.error(caught instanceof Error ? caught.message : t('problems.saveFailed'));
-  } finally {
-    saving.value = false;
-  }
-}
-
-function validatePayload(problemPayload: ProblemPayload) {
-  if (!problemPayload.title) return t('problems.titleRequired');
-  if (!problemPayload.statement) return t('problems.statementRequired');
-  if (problemPayload.timeLimitMillis < 100) return t('problems.timeLimitInvalid');
-  if (problemPayload.memoryLimitKb < 16 * 1024) return t('problems.memoryLimitInvalid');
-  if (!problemPayload.testCases.length) return t('problems.sampleRequired');
-  if (!problemPayload.testCases.some((testCase) => testCase.sample)) return t('problems.sampleRequired');
-  return '';
 }
 
 async function deleteProblem(id: EntityId) {

@@ -1,96 +1,124 @@
 <template>
-  <section class="drafts-layout">
-    <a-card :title="t('drafts.generate')" :bordered="false">
+  <section class="ai-drafts-layout">
+    <a-card :bordered="false" class="draft-generate-card">
+      <div class="draft-card-head">
+        <div class="draft-title-row">
+          <span class="draft-icon">✦</span>
+          <div>
+            <h2>{{ t('drafts.generate') }}</h2>
+            <p>{{ t('drafts.generateCopy') }}</p>
+          </div>
+        </div>
+      </div>
+
       <a-alert v-if="generateError" type="error" show-icon class="form-alert" :content="generateError" />
-      <a-form :model="form" layout="vertical">
+      <a-form :model="form" layout="vertical" class="draft-generate-form">
         <a-form-item :label="t('drafts.topic')">
-          <a-input v-model="form.topic" />
+          <a-input v-model="form.topic" :max-length="100" :placeholder="t('drafts.topicPlaceholder')" />
+          <template #extra>{{ t('problems.charCount', { count: form.topic.length, max: 100 }) }}</template>
         </a-form-item>
+
         <div class="form-grid two">
           <a-form-item :label="t('common.difficulty')">
             <a-select v-model="form.difficulty">
-              <a-option v-for="difficulty in difficulties" :key="difficulty" :value="difficulty">{{ t(`difficulty.${difficulty}`) }}</a-option>
+              <a-option v-for="difficulty in difficulties" :key="difficulty" :value="difficulty">
+                {{ difficultyIcon(difficulty) }} {{ t(`difficulty.${difficulty}`) }}
+              </a-option>
             </a-select>
           </a-form-item>
           <a-form-item :label="t('drafts.count')">
-            <a-input-number v-model="form.count" :min="1" :max="5" />
+            <div class="draft-count-stepper">
+              <button type="button" :disabled="form.count <= 1" @click="form.count -= 1">−</button>
+              <a-input-number v-model="form.count" :min="1" :max="5" hide-button />
+              <button type="button" :disabled="form.count >= 5" @click="form.count += 1">+</button>
+            </div>
           </a-form-item>
         </div>
+
         <a-form-item :label="t('drafts.teachingGoal')">
-          <a-textarea v-model="form.teachingGoal" :auto-size="{ minRows: 4, maxRows: 7 }" />
+          <a-textarea v-model="form.teachingGoal" :max-length="200" :placeholder="t('drafts.teachingGoalPlaceholder')" :auto-size="{ minRows: 5, maxRows: 8 }" />
+          <template #extra>{{ t('problems.charCount', { count: form.teachingGoal.length, max: 200 }) }}</template>
         </a-form-item>
-        <a-button type="primary" long :loading="generating" @click="generateDraft">{{ t('drafts.generate') }}</a-button>
+
+        <a-button type="primary" long class="draft-generate-button" :loading="generating" @click="generateDraft">
+          {{ generating ? t('drafts.generating') : t('drafts.generate') }}
+        </a-button>
       </a-form>
+
+      <div class="draft-tip">
+        <span>i</span>
+        <p>{{ t('drafts.generateTip') }}</p>
+      </div>
     </a-card>
 
-    <section class="view-stack">
-      <a-card :bordered="false">
-        <div class="toolbar-row">
-          <a-space wrap>
-            <a-button :type="activeStatus === 'PENDING_REVIEW' ? 'primary' : 'secondary'" @click="setStatus('PENDING_REVIEW')">
-              {{ t('drafts.pending') }}
-            </a-button>
-            <a-button :type="activeStatus === 'APPROVED' ? 'primary' : 'secondary'" @click="setStatus('APPROVED')">
-              {{ t('drafts.approved') }}
-            </a-button>
-          </a-space>
-          <a-button @click="loadDrafts">{{ t('common.refresh') }}</a-button>
-        </div>
-      </a-card>
+    <a-card :bordered="false" class="draft-review-card">
+      <div class="draft-review-head">
+        <a-tabs v-model:active-key="activeStatus" type="rounded" class="draft-tabs" @change="setStatus">
+          <a-tab-pane key="PENDING_REVIEW" :title="t('drafts.pendingWithCount', { count: pendingCount })" />
+          <a-tab-pane key="APPROVED" :title="t('drafts.approvedWithCount', { count: approvedCount })" />
+        </a-tabs>
+        <a-button :loading="loading" @click="loadDrafts">{{ t('common.refresh') }}</a-button>
+      </div>
 
       <a-alert v-if="listError" type="error" show-icon :content="listError" />
-      <a-card :bordered="false">
-        <a-table :data="drafts" :loading="loading" :pagination="false" row-key="id">
-          <template #columns>
-            <a-table-column :title="t('common.title')" data-index="title" />
-            <a-table-column :title="t('common.difficulty')" :width="130">
-              <template #cell="{ record }">
-                <a-tag>{{ t(`difficulty.${record.difficulty}`) }}</a-tag>
-              </template>
-            </a-table-column>
-            <a-table-column :title="t('common.tags')" :width="240">
-              <template #cell="{ record }">
-                <a-space wrap>
-                  <a-tag v-for="tag in record.tags" :key="tag">{{ tag }}</a-tag>
-                </a-space>
-              </template>
-            </a-table-column>
-            <a-table-column :title="t('drafts.validation')" :width="160">
-              <template #cell="{ record }">
-                <a-tooltip v-if="record.validationErrors?.length" :content="record.validationErrors.join('; ')">
-                  <a-tag color="orange">{{ validationStatusLabel(record.validationStatus) }}</a-tag>
-                </a-tooltip>
-                <a-tag v-else color="green">{{ validationStatusLabel(record.validationStatus) }}</a-tag>
-              </template>
-            </a-table-column>
-            <a-table-column :title="t('drafts.import')" :width="150">
-              <template #cell="{ record }">
-                <a-tag v-if="record.importedProblemId" color="green">#{{ record.importedProblemId }}</a-tag>
-                <a-tag v-else>{{ t('drafts.notImported') }}</a-tag>
-              </template>
-            </a-table-column>
-            <a-table-column :title="t('common.actions')" :width="260">
-              <template #cell="{ record }">
-                <a-space>
-                  <a-button size="small" :disabled="activeStatus === 'APPROVED'" @click="approveDraft(record.id)">
-                    {{ t('drafts.approve') }}
-                  </a-button>
-                  <a-popconfirm :content="t('drafts.importConfirm')" @ok="importDraft(record)">
-                    <a-button size="small" type="primary" :disabled="!!record.importedProblemId">{{ t('drafts.import') }}</a-button>
-                  </a-popconfirm>
-                </a-space>
-              </template>
-            </a-table-column>
-          </template>
-        </a-table>
-        <a-empty v-if="!loading && drafts.length === 0" :description="t('drafts.empty')" />
-      </a-card>
+      <a-table v-if="drafts.length || loading" :data="drafts" :loading="loading" :pagination="false" row-key="id" :scroll="{ x: 920 }">
+        <template #columns>
+          <a-table-column :title="t('common.title')" data-index="title" :width="220" />
+          <a-table-column :title="t('common.difficulty')" :width="120">
+            <template #cell="{ record }">
+              <a-tag :color="difficultyColor(record.difficulty)">{{ t(`difficulty.${record.difficulty}`) }}</a-tag>
+            </template>
+          </a-table-column>
+          <a-table-column :title="t('common.tags')" :width="220">
+            <template #cell="{ record }">
+              <a-space wrap>
+                <a-tag v-for="tag in record.tags" :key="tag" class="soft-tag">{{ tag }}</a-tag>
+              </a-space>
+            </template>
+          </a-table-column>
+          <a-table-column :title="t('drafts.validation')" :width="140">
+            <template #cell="{ record }">
+              <a-tooltip v-if="record.validationErrors?.length" :content="record.validationErrors.join('; ')">
+                <a-tag color="orange">{{ validationStatusLabel(record.validationStatus) }}</a-tag>
+              </a-tooltip>
+              <a-tag v-else color="green">{{ validationStatusLabel(record.validationStatus) }}</a-tag>
+            </template>
+          </a-table-column>
+          <a-table-column :title="t('drafts.import')" :width="150">
+            <template #cell="{ record }">
+              <a-tag v-if="record.importedProblemId" color="green">#{{ record.importedProblemId }}</a-tag>
+              <a-tag v-else>{{ t('drafts.notImported') }}</a-tag>
+            </template>
+          </a-table-column>
+          <a-table-column :title="t('common.actions')" :width="230" fixed="right">
+            <template #cell="{ record }">
+              <a-space>
+                <a-button size="small" :disabled="activeStatus === 'APPROVED'" @click="approveDraft(record.id)">
+                  {{ t('drafts.approve') }}
+                </a-button>
+                <a-popconfirm :content="t('drafts.importConfirm')" @ok="importDraft(record)">
+                  <a-button size="small" type="primary" :disabled="!!record.importedProblemId">{{ t('drafts.import') }}</a-button>
+                </a-popconfirm>
+              </a-space>
+            </template>
+          </a-table-column>
+        </template>
+      </a-table>
 
-      <a-card v-if="selectedPreview" :title="t('drafts.preview')" :bordered="false">
-        <h3>{{ selectedPreview.title }}</h3>
-        <p class="statement">{{ selectedPreview.statement }}</p>
-      </a-card>
-    </section>
+      <div v-if="!loading && drafts.length === 0" class="draft-empty-state">
+        <div class="empty-illustration">AI</div>
+        <h3>{{ t('drafts.emptyTitle') }}</h3>
+        <p>{{ t('drafts.emptyDescription') }}</p>
+        <a-button type="primary" @click="focusGenerate">{{ t('drafts.generateNow') }}</a-button>
+      </div>
+
+      <div class="draft-flow">
+        <article v-for="(step, index) in flowSteps" :key="step">
+          <span>{{ index + 1 }}</span>
+          <strong>{{ step }}</strong>
+        </article>
+      </div>
+    </a-card>
   </section>
 </template>
 
@@ -112,12 +140,22 @@ const form = reactive({
 });
 const activeStatus = ref<DraftStatus>('PENDING_REVIEW');
 const drafts = ref<ProblemDraftResponse[]>([]);
+const pendingCount = ref(0);
+const approvedCount = ref(0);
 const loading = ref(false);
 const generating = ref(false);
 const listError = ref('');
 const generateError = ref('');
 
-const selectedPreview = computed(() => drafts.value[0] || null);
+const flowSteps = computed(() => [t('drafts.flowGenerate'), t('drafts.flowReview'), t('drafts.flowApprove')]);
+
+function difficultyIcon(difficulty: Difficulty) {
+  return ({ EASY: '●', MEDIUM: '◆', HARD: '▲', CHALLENGE: '✦' } as Record<Difficulty, string>)[difficulty];
+}
+
+function difficultyColor(difficulty: string) {
+  return ({ EASY: 'green', MEDIUM: 'orange', HARD: 'red', CHALLENGE: 'purple' } as Record<string, string>)[difficulty] || 'arcoblue';
+}
 
 function validationStatusLabel(status: string) {
   const key = `validationStatus.${status}`;
@@ -125,11 +163,29 @@ function validationStatusLabel(status: string) {
   return translated === key ? status : translated;
 }
 
+async function loadCounts() {
+  try {
+    const [pending, approved] = await Promise.all([
+      api.problemDrafts({ page: 1, pageSize: 1, status: 'PENDING_REVIEW' }),
+      api.problemDrafts({ page: 1, pageSize: 1, status: 'APPROVED' })
+    ]);
+    pendingCount.value = pending.total;
+    approvedCount.value = approved.total;
+  } catch {
+    pendingCount.value = activeStatus.value === 'PENDING_REVIEW' ? drafts.value.length : pendingCount.value;
+    approvedCount.value = activeStatus.value === 'APPROVED' ? drafts.value.length : approvedCount.value;
+  }
+}
+
 async function loadDrafts() {
   loading.value = true;
   listError.value = '';
   try {
-    drafts.value = (await api.problemDrafts({ page: 1, pageSize: 50, status: activeStatus.value })).records;
+    const page = await api.problemDrafts({ page: 1, pageSize: 50, status: activeStatus.value });
+    drafts.value = page.records;
+    if (activeStatus.value === 'PENDING_REVIEW') pendingCount.value = page.total;
+    if (activeStatus.value === 'APPROVED') approvedCount.value = page.total;
+    await loadCounts();
   } catch (caught) {
     listError.value = caught instanceof Error ? caught.message : t('drafts.loadFailed');
   } finally {
@@ -137,9 +193,14 @@ async function loadDrafts() {
   }
 }
 
-async function setStatus(status: DraftStatus) {
-  activeStatus.value = status;
+async function setStatus(value: string | number) {
+  activeStatus.value = value as DraftStatus;
   await loadDrafts();
+}
+
+function focusGenerate() {
+  const input = document.querySelector<HTMLInputElement>('.draft-generate-card input');
+  input?.focus();
 }
 
 async function generateDraft() {
@@ -155,6 +216,7 @@ async function generateDraft() {
     Message.success(t('drafts.generated'));
     if (activeStatus.value === 'PENDING_REVIEW') {
       drafts.value.unshift(draft);
+      pendingCount.value += 1;
     } else {
       activeStatus.value = 'PENDING_REVIEW';
       await loadDrafts();

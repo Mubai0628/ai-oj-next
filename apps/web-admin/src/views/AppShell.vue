@@ -15,6 +15,11 @@
           <span>{{ item.label }}</span>
         </RouterLink>
       </nav>
+
+      <button class="sidebar-collapse" type="button">
+        <span>‹</span>
+        <strong>{{ t('shell.collapseMenu') }}</strong>
+      </button>
     </aside>
 
     <section class="workspace">
@@ -31,7 +36,15 @@
               <span class="admin-user-caret">⌄</span>
             </button>
             <template #content>
+              <div class="admin-menu-profile">
+                <span class="admin-avatar">{{ userInitial }}</span>
+                <div>
+                  <strong>{{ auth.displayName || t('shell.adminFallback') }}</strong>
+                  <small>{{ t('role.ADMIN') }}</small>
+                </div>
+              </div>
               <a-doption value="dashboard">{{ t('nav.dashboard') }}</a-doption>
+              <a-doption value="refresh">{{ t('userMenu.refreshProfile') }}</a-doption>
               <a-doption value="logout">
                 <span class="danger-menu-item">{{ loggingOut ? t('common.loading') : t('common.logout') }}</span>
               </a-doption>
@@ -75,6 +88,9 @@ const userInitial = computed(() => (auth.displayName || t('shell.adminFallback')
 function handleUserMenu(value: string | number | Record<string, unknown> | undefined) {
   if (value === 'dashboard') {
     void router.push({ name: 'dashboard' });
+  }
+  if (value === 'refresh') {
+    void auth.loadProfile(true);
   }
   if (value === 'logout') {
     confirmLogout();
