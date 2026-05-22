@@ -213,7 +213,7 @@ public class AiController {
     }
 
     private List<String> streamParts(String content) {
-        if (content == null || content.isBlank()) {
+        if (content == null || content.isEmpty()) {
             return List.of("");
         }
         List<String> parts = new ArrayList<>();
@@ -235,9 +235,8 @@ public class AiController {
     }
 
     private void addPart(List<String> parts, StringBuilder current) {
-        String part = current.toString();
-        if (!part.isBlank()) {
-            parts.add(part);
+        if (current.length() > 0) {
+            parts.add(current.toString());
         }
         current.setLength(0);
     }

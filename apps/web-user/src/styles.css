@@ -3155,27 +3155,54 @@ body.is-resizing-problem-workspace * {
 
 .ai-message-markdown p,
 .ai-message-markdown ul,
+.ai-message-markdown ol,
 .ai-message-markdown pre,
+.ai-message-markdown h1,
+.ai-message-markdown h2,
 .ai-message-markdown h3,
 .ai-message-markdown h4,
-.ai-message-markdown h5 {
+.ai-message-markdown h5,
+.ai-message-markdown h6 {
   margin: 0;
 }
 
-.ai-message-markdown ul {
-  padding-left: 18px;
+.ai-message-markdown p {
+  white-space: normal;
+}
+
+.ai-message-markdown ul,
+.ai-message-markdown ol {
+  padding-left: 20px;
 }
 
 .ai-message-markdown li + li {
-  margin-top: 4px;
+  margin-top: 5px;
 }
 
+.ai-message-markdown h1,
+.ai-message-markdown h2,
 .ai-message-markdown h3,
 .ai-message-markdown h4,
-.ai-message-markdown h5 {
+.ai-message-markdown h5,
+.ai-message-markdown h6 {
   color: inherit;
-  font-size: 14px;
   font-weight: 900;
+  line-height: 1.35;
+}
+
+.ai-message-markdown h1,
+.ai-message-markdown h2 {
+  font-size: 16px;
+}
+
+.ai-message-markdown h3 {
+  font-size: 15px;
+}
+
+.ai-message-markdown h4,
+.ai-message-markdown h5,
+.ai-message-markdown h6 {
+  font-size: 14px;
 }
 
 .ai-message-markdown code {
@@ -3194,6 +3221,7 @@ body.is-resizing-problem-workspace * {
 .ai-message-markdown pre {
   max-width: 100%;
   overflow-x: auto;
+  overscroll-behavior-inline: contain;
   padding: 12px;
   border-radius: 12px;
   background: #f1f5f9;
@@ -3370,12 +3398,12 @@ body.is-resizing-problem-workspace * {
   gap: 12px;
 }
 
-.ai-history-filter label {
+.ai-history-filter__field {
   display: grid;
   gap: 6px;
 }
 
-.ai-history-filter label > span {
+.ai-history-filter__label {
   color: var(--color-text-secondary);
   font-size: 12px;
   font-weight: 800;

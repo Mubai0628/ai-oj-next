@@ -11,27 +11,37 @@
     <section class="ai-tutor-workspace">
       <aside class="ai-tutor-list-panel">
         <div class="ai-history-filter">
-          <label>
-            <span>{{ t('aiAssistant.problemFilter') }}</span>
-            <a-select v-model="problemFilter" class="full-width" @change="onProblemFilterChange">
+          <div class="ai-history-filter__field">
+            <span class="ai-history-filter__label">{{ t('aiAssistant.problemFilter') }}</span>
+            <a-select
+              v-model="problemFilter"
+              class="full-width"
+              @change="onProblemFilterChange"
+              @popup-visible-change="onProblemFilterPopupChange"
+            >
               <a-option value="__all__">{{ t('aiAssistant.allProblems') }}</a-option>
               <a-option value="__none__">{{ t('aiAssistant.unlinkedProblem') }}</a-option>
               <a-option v-for="filter in linkedProblemFilters" :key="filter.problemId" :value="String(filter.problemId)">
                 {{ filter.problemTitle || `#${filter.problemId}` }} · {{ t('aiAssistant.conversationCount', { count: filter.count }) }}
               </a-option>
             </a-select>
-          </label>
+          </div>
 
-          <label>
-            <span>{{ t('aiAssistant.modeFilter') }}</span>
-            <a-select v-model="modeFilter" class="full-width" @change="onModeFilterChange">
+          <div class="ai-history-filter__field">
+            <span class="ai-history-filter__label">{{ t('aiAssistant.modeFilter') }}</span>
+            <a-select
+              v-model="modeFilter"
+              class="full-width"
+              @change="onModeFilterChange"
+              @popup-visible-change="onModeFilterPopupChange"
+            >
               <a-option value="all">{{ t('common.all') }}</a-option>
               <a-option value="hint">{{ t('aiAssistant.modes.hint') }}</a-option>
               <a-option value="debug">{{ t('aiAssistant.modes.debug') }}</a-option>
               <a-option value="edge">{{ t('aiAssistant.modes.edge') }}</a-option>
               <a-option value="optimize">{{ t('aiAssistant.modes.optimize') }}</a-option>
             </a-select>
-          </label>
+          </div>
 
           <a-input v-model="keyword" :placeholder="t('aiAssistant.searchPlaceholder')" allow-clear />
           <a-button @click="resetFilters">{{ t('submissions.resetFilters') }}</a-button>
@@ -119,6 +129,8 @@ const mode = ref<AiMode>('hint');
 const sending = ref(false);
 const error = ref('');
 const isApplyingRouteQuery = ref(false);
+const problemFilterPopupVisible = ref(false);
+const modeFilterPopupVisible = ref(false);
 let querySyncTimer: ReturnType<typeof setTimeout> | undefined;
 
 const linkedProblemFilters = computed(() => assistant.problemFilters.filter((filter) => filter.problemId !== undefined));
@@ -246,11 +258,15 @@ function normalizeModeFilter(value: unknown): AiMode | 'all' {
 function scheduleQuerySync() {
   if (isApplyingRouteQuery.value) return;
   if (querySyncTimer) clearTimeout(querySyncTimer);
-  void nextTick(() => {
-    querySyncTimer = setTimeout(() => {
+  querySyncTimer = setTimeout(() => {
+    void nextTick(() => {
+      if (problemFilterPopupVisible.value || modeFilterPopupVisible.value) {
+        scheduleQuerySync();
+        return;
+      }
       syncQuery();
-    }, 0);
-  });
+    });
+  }, 120);
 }
 
 function onProblemFilterChange(value: unknown) {
@@ -263,6 +279,16 @@ function onModeFilterChange(value: unknown) {
   modeFilter.value = normalizeModeFilter(value);
   ensureSelection();
   scheduleQuerySync();
+}
+
+function onProblemFilterPopupChange(visible: boolean) {
+  problemFilterPopupVisible.value = visible;
+  if (!visible) scheduleQuerySync();
+}
+
+function onModeFilterPopupChange(visible: boolean) {
+  modeFilterPopupVisible.value = visible;
+  if (!visible) scheduleQuerySync();
 }
 
 function setMode(value: AiMode) {
@@ -406,7 +432,10 @@ watch(keyword, () => {
 
 watch(
   () => route.query,
-  () => applyQuery()
+  () => {
+    if (problemFilterPopupVisible.value || modeFilterPopupVisible.value) return;
+    applyQuery();
+  }
 );
 
 onMounted(async () => {

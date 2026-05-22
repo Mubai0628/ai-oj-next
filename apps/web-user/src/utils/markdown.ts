@@ -8,60 +8,103 @@ function escapeHtml(value: string) {
 }
 
 function renderInline(value: string) {
-  return escapeHtml(value)
+  const codePlaceholders: string[] = [];
+  const escaped = escapeHtml(value).replace(/`([^`]+?)`/g, (_, code: string) => {
+    codePlaceholders.push(`<code>${code}</code>`);
+    return `\u0000CODE${codePlaceholders.length - 1}\u0000`;
+  });
+
+  return escaped
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/`(.+?)`/g, '<code>$1</code>');
+    .replace(/\u0000CODE(\d+)\u0000/g, (_, index: string) => codePlaceholders[Number(index)] || '');
 }
 
 export function renderMarkdownLite(markdown: string) {
-  const lines = markdown.split(/\r?\n/);
+  const lines = markdown.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
   const html: string[] = [];
-  let inCode = false;
-  let inList = false;
+  const paragraphLines: string[] = [];
+  const codeLines: string[] = [];
+  let inCodeBlock = false;
+  let listType: 'ul' | 'ol' | null = null;
+
+  const closeParagraph = () => {
+    if (!paragraphLines.length) return;
+    html.push(`<p>${paragraphLines.map((line) => renderInline(line)).join('<br>')}</p>`);
+    paragraphLines.length = 0;
+  };
 
   const closeList = () => {
-    if (inList) {
-      html.push('</ul>');
-      inList = false;
-    }
+    if (!listType) return;
+    html.push(`</${listType}>`);
+    listType = null;
+  };
+
+  const ensureList = (type: 'ul' | 'ol') => {
+    closeParagraph();
+    if (listType === type) return;
+    closeList();
+    html.push(`<${type}>`);
+    listType = type;
+  };
+
+  const closeCodeBlock = () => {
+    html.push(`<pre><code>${escapeHtml(codeLines.join('\n'))}</code></pre>`);
+    codeLines.length = 0;
+    inCodeBlock = false;
   };
 
   for (const line of lines) {
     if (line.trim().startsWith('```')) {
-      closeList();
-      html.push(inCode ? '</code></pre>' : '<pre><code>');
-      inCode = !inCode;
-      continue;
-    }
-    if (inCode) {
-      html.push(`${escapeHtml(line)}\n`);
-      continue;
-    }
-    if (!line.trim()) {
-      closeList();
-      continue;
-    }
-    const heading = line.match(/^(#{1,3})\s+(.+)$/);
-    if (heading) {
-      closeList();
-      const level = heading[1].length + 2;
-      html.push(`<h${level}>${renderInline(heading[2])}</h${level}>`);
-      continue;
-    }
-    const listItem = line.match(/^\s*[-*]\s+(.+)$/);
-    if (listItem) {
-      if (!inList) {
-        html.push('<ul>');
-        inList = true;
+      if (inCodeBlock) {
+        closeCodeBlock();
+      } else {
+        closeParagraph();
+        closeList();
+        inCodeBlock = true;
       }
-      html.push(`<li>${renderInline(listItem[1])}</li>`);
       continue;
     }
+
+    if (inCodeBlock) {
+      codeLines.push(line);
+      continue;
+    }
+
+    if (!line.trim()) {
+      closeParagraph();
+      closeList();
+      continue;
+    }
+
+    const heading = line.match(/^(#{1,6})\s+(.+)$/);
+    if (heading) {
+      closeParagraph();
+      closeList();
+      const level = heading[1].length;
+      html.push(`<h${level}>${renderInline(heading[2].trim())}</h${level}>`);
+      continue;
+    }
+
+    const unorderedItem = line.match(/^\s*[-*]\s+(.+)$/);
+    if (unorderedItem) {
+      ensureList('ul');
+      html.push(`<li>${renderInline(unorderedItem[1].trim())}</li>`);
+      continue;
+    }
+
+    const orderedItem = line.match(/^\s*\d+[.)]\s+(.+)$/);
+    if (orderedItem) {
+      ensureList('ol');
+      html.push(`<li>${renderInline(orderedItem[1].trim())}</li>`);
+      continue;
+    }
+
     closeList();
-    html.push(`<p>${renderInline(line)}</p>`);
+    paragraphLines.push(line.trim());
   }
 
+  if (inCodeBlock) closeCodeBlock();
+  closeParagraph();
   closeList();
-  if (inCode) html.push('</code></pre>');
   return html.join('');
 }
