@@ -6,7 +6,7 @@
         <strong>{{ message.role === 'user' ? t('ai.you') : t('ai.tutor') }}</strong>
         <span>{{ timeText }}</span>
       </div>
-      <p v-if="message.content">{{ message.content }}</p>
+      <div v-if="message.content" class="ai-message-markdown" v-html="formattedContent" />
       <p v-else class="ai-message-bubble__placeholder">{{ t('ai.streaming') }}</p>
       <small v-if="message.status === 'error'">{{ t('aiAssistant.messageFailed') }}</small>
     </div>
@@ -17,6 +17,7 @@
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import type { AiMessage } from '@/types/ai-assistant';
+import { renderMarkdownLite } from '@/utils/markdown';
 
 const props = defineProps<{
   message: AiMessage;
@@ -30,4 +31,6 @@ const timeText = computed(() => {
     minute: '2-digit'
   }).format(new Date(props.message.createdAt));
 });
+
+const formattedContent = computed(() => renderMarkdownLite(props.message.content));
 </script>

@@ -13,7 +13,7 @@
         <div class="ai-history-filter">
           <label>
             <span>{{ t('aiAssistant.problemFilter') }}</span>
-            <a-select v-model="problemFilter" class="full-width">
+            <a-select v-model="problemFilter" class="full-width" @change="onProblemFilterChange">
               <a-option value="__all__">{{ t('aiAssistant.allProblems') }}</a-option>
               <a-option value="__none__">{{ t('aiAssistant.unlinkedProblem') }}</a-option>
               <a-option v-for="filter in linkedProblemFilters" :key="filter.problemId" :value="String(filter.problemId)">
@@ -24,7 +24,7 @@
 
           <label>
             <span>{{ t('aiAssistant.modeFilter') }}</span>
-            <a-select v-model="modeFilter" class="full-width">
+            <a-select v-model="modeFilter" class="full-width" @change="onModeFilterChange">
               <a-option value="all">{{ t('common.all') }}</a-option>
               <a-option value="hint">{{ t('aiAssistant.modes.hint') }}</a-option>
               <a-option value="debug">{{ t('aiAssistant.modes.debug') }}</a-option>
@@ -91,7 +91,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Message } from '@arco-design/web-vue';
 import { useRoute, useRouter } from 'vue-router';
@@ -118,6 +118,8 @@ const input = ref('');
 const mode = ref<AiMode>('hint');
 const sending = ref(false);
 const error = ref('');
+const isApplyingRouteQuery = ref(false);
+let querySyncTimer: ReturnType<typeof setTimeout> | undefined;
 
 const linkedProblemFilters = computed(() => assistant.problemFilters.filter((filter) => filter.problemId !== undefined));
 const selectedConversation = computed(() => assistant.getConversation(selectedConversationId.value));
@@ -233,6 +235,36 @@ function newConversation() {
   syncQuery();
 }
 
+function normalizeProblemFilter(value: unknown) {
+  return typeof value === 'string' && value ? value : '__all__';
+}
+
+function normalizeModeFilter(value: unknown): AiMode | 'all' {
+  return value === 'hint' || value === 'debug' || value === 'edge' || value === 'optimize' ? value : 'all';
+}
+
+function scheduleQuerySync() {
+  if (isApplyingRouteQuery.value) return;
+  if (querySyncTimer) clearTimeout(querySyncTimer);
+  void nextTick(() => {
+    querySyncTimer = setTimeout(() => {
+      syncQuery();
+    }, 0);
+  });
+}
+
+function onProblemFilterChange(value: unknown) {
+  problemFilter.value = normalizeProblemFilter(value);
+  ensureSelection();
+  scheduleQuerySync();
+}
+
+function onModeFilterChange(value: unknown) {
+  modeFilter.value = normalizeModeFilter(value);
+  ensureSelection();
+  scheduleQuerySync();
+}
+
 function setMode(value: AiMode) {
   mode.value = value;
   if (selectedConversationId.value) assistant.updateConversation(selectedConversationId.value, { mode: value });
@@ -323,21 +355,29 @@ function resetFilters() {
   modeFilter.value = 'all';
   keyword.value = '';
   ensureSelection();
+  scheduleQuerySync();
 }
 
 function syncQuery() {
   const query: Record<string, string> = {};
   if (problemFilter.value !== '__all__') query.problemId = problemFilter.value === '__none__' ? '__none__' : problemFilter.value;
   if (selectedConversationId.value) query.conversationId = selectedConversationId.value;
+  const currentProblemId = typeof route.query.problemId === 'string' ? route.query.problemId : undefined;
+  const currentConversationId = typeof route.query.conversationId === 'string' ? route.query.conversationId : undefined;
+  if (currentProblemId === query.problemId && currentConversationId === query.conversationId) return;
   void router.replace({ query });
 }
 
 function applyQuery() {
+  isApplyingRouteQuery.value = true;
   const queryProblemId = typeof route.query.problemId === 'string' ? route.query.problemId : '';
   const queryConversationId = typeof route.query.conversationId === 'string' ? route.query.conversationId : '';
   problemFilter.value = queryProblemId || '__all__';
   selectedConversationId.value = queryConversationId || undefined;
   ensureSelection();
+  void nextTick(() => {
+    isApplyingRouteQuery.value = false;
+  });
 }
 
 function ensureSelection() {
@@ -360,9 +400,8 @@ async function loadProblems() {
   }
 }
 
-watch([problemFilter, modeFilter, keyword], () => {
+watch(keyword, () => {
   ensureSelection();
-  syncQuery();
 });
 
 watch(
@@ -374,5 +413,9 @@ onMounted(async () => {
   assistant.load();
   await loadProblems();
   applyQuery();
+});
+
+onBeforeUnmount(() => {
+  if (querySyncTimer) clearTimeout(querySyncTimer);
 });
 </script>
