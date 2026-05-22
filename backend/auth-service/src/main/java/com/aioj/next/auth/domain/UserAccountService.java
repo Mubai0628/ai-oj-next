@@ -64,13 +64,22 @@ public class UserAccountService {
 
     @Transactional
     public UserAccount register(String account, String rawPassword, String displayName, String email) {
+        return register(account, rawPassword, displayName, email, Role.STUDENT);
+    }
+
+    @Transactional
+    public UserAccount register(String account, String rawPassword, String displayName, String email, Role requestedRole) {
         if (findUserByAccount(account) != null) {
             throw new DomainException(ErrorCode.CONFLICT, "Account already exists");
         }
+        Role role = requestedRole == null ? Role.STUDENT : requestedRole;
+        if (role != Role.STUDENT && role != Role.TEACHER) {
+            throw new DomainException(ErrorCode.BAD_REQUEST, "Public registration only supports student or teacher roles");
+        }
         UserEntity user = newUser(account, rawPassword, displayName, email, true);
         userMapper.insert(user);
-        replaceRoles(user.getId(), Set.of(Role.STUDENT));
-        return toAccount(user, Set.of(Role.STUDENT));
+        replaceRoles(user.getId(), Set.of(role));
+        return toAccount(user, Set.of(role));
     }
 
     public UserAccount login(String account, String rawPassword) {
@@ -303,7 +312,11 @@ public class UserAccountService {
         if (roles == null || roles.isEmpty() || !ALLOWED_ROLES.containsAll(roles)) {
             throw new DomainException(ErrorCode.BAD_REQUEST, "Invalid roles");
         }
-        return roles.stream().collect(Collectors.toCollection(() -> EnumSet.noneOf(Role.class)));
+        Set<Role> normalized = roles.stream().collect(Collectors.toCollection(() -> EnumSet.noneOf(Role.class)));
+        if (normalized.contains(Role.STUDENT) && normalized.contains(Role.TEACHER)) {
+            throw new DomainException(ErrorCode.BAD_REQUEST, "Student and teacher roles are mutually exclusive");
+        }
+        return normalized;
     }
 
     private UserAccount toAccount(UserEntity user, Set<Role> roles) {

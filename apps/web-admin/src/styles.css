@@ -2,11 +2,25 @@
   box-sizing: border-box;
 }
 
+:root {
+  --admin-primary: #2563eb;
+  --admin-primary-soft: #eff6ff;
+  --admin-bg: #f6f9fc;
+  --admin-surface: #ffffff;
+  --admin-border: #e2e8f0;
+  --admin-border-soft: #eef2f7;
+  --admin-text: #0f172a;
+  --admin-muted: #64748b;
+  --admin-danger: #ef4444;
+  --admin-radius: 16px;
+  --admin-shadow: 0 16px 42px rgba(15, 23, 42, 0.07);
+}
+
 body {
   margin: 0;
   min-width: 320px;
-  background: #f6f8fb;
-  color: #111827;
+  background: var(--admin-bg);
+  color: var(--admin-text);
   font-family: Inter, "PingFang SC", "Microsoft YaHei", Arial, sans-serif;
 }
 
@@ -66,12 +80,27 @@ textarea {
 .auth-card,
 .blocked-card,
 .workspace .arco-card {
-  border-radius: 8px;
-  box-shadow: 0 12px 34px rgba(15, 23, 42, 0.07);
+  border: 1px solid var(--admin-border-soft);
+  border-radius: var(--admin-radius);
+  box-shadow: var(--admin-shadow);
+}
+
+.auth-card .arco-tabs-nav {
+  margin-bottom: 18px;
 }
 
 .workspace .arco-card-body {
   padding: 18px;
+}
+
+.workspace .arco-table-th {
+  background: #f8fbff;
+  color: #334155;
+  font-weight: 800;
+}
+
+.workspace .arco-table-tr:hover .arco-table-td {
+  background: #f8fbff;
 }
 
 .workspace .arco-table-th,
@@ -97,6 +126,9 @@ textarea {
   min-height: 100vh;
   display: grid;
   grid-template-columns: 244px minmax(0, 1fr);
+  background:
+    radial-gradient(circle at top left, rgba(37, 99, 235, 0.08), transparent 34%),
+    var(--admin-bg);
 }
 
 .sidebar {
@@ -107,8 +139,8 @@ textarea {
   flex-direction: column;
   gap: 26px;
   padding: 22px 16px;
-  border-right: 1px solid #e5e7eb;
-  background: #ffffff;
+  border-right: 1px solid var(--admin-border);
+  background: rgba(255, 255, 255, 0.92);
   box-shadow: 8px 0 26px rgba(20, 35, 55, 0.03);
 }
 
@@ -124,7 +156,7 @@ textarea {
   display: grid;
   place-items: center;
   border-radius: 8px;
-  background: #165dff;
+  background: linear-gradient(135deg, #2563eb, #0ea5e9);
   color: #fff;
   font-weight: 800;
 }
@@ -147,16 +179,41 @@ textarea {
   min-height: 42px;
   display: flex;
   align-items: center;
+  gap: 10px;
   padding: 0 12px;
-  border-radius: 8px;
+  border-radius: 12px;
   color: #374151;
   font-weight: 600;
   text-decoration: none;
+  transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease;
+}
+
+.nav-item:hover {
+  background: #f8fbff;
+  color: var(--admin-primary);
+  transform: translateX(2px);
 }
 
 .nav-item.router-link-active {
-  background: #eef4ff;
-  color: #165dff;
+  background: var(--admin-primary-soft);
+  color: var(--admin-primary);
+}
+
+.nav-icon {
+  width: 26px;
+  height: 26px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 9px;
+  background: #f1f5f9;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.nav-item.router-link-active .nav-icon {
+  background: #dbeafe;
+  color: var(--admin-primary);
 }
 
 .workspace {
@@ -166,9 +223,59 @@ textarea {
   padding: 12px 0 32px;
 }
 
-.user-name {
-  color: #374151;
-  font-weight: 600;
+.admin-top-actions {
+  justify-content: flex-end;
+}
+
+.admin-user-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 42px;
+  padding: 4px 8px 4px 5px;
+  border: 1px solid var(--admin-border);
+  border-radius: 999px;
+  background: var(--admin-surface);
+  color: var(--admin-text);
+  cursor: pointer;
+  transition: border-color 0.18s ease, background 0.18s ease;
+}
+
+.admin-user-trigger:hover {
+  border-color: #bfdbfe;
+  background: #f8fbff;
+}
+
+.admin-avatar {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #dbeafe;
+  color: var(--admin-primary);
+  font-weight: 900;
+}
+
+.admin-user-copy {
+  display: grid;
+  line-height: 1.2;
+  text-align: left;
+}
+
+.admin-user-copy small {
+  color: var(--admin-muted);
+  font-size: 12px;
+}
+
+.admin-user-caret {
+  color: var(--admin-muted);
+  font-size: 14px;
+}
+
+.danger-menu-item {
+  color: var(--admin-danger);
+  font-weight: 800;
 }
 
 .view-stack {
@@ -191,6 +298,10 @@ textarea {
 
 .toolbar-row {
   flex-wrap: wrap;
+}
+
+.filter-card {
+  background: #ffffff;
 }
 
 .workspace .arco-card {
@@ -325,9 +436,9 @@ textarea {
 
 .case-card {
   padding: 12px;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  background: #fafbfc;
+  border: 1px solid var(--admin-border-soft);
+  border-radius: 14px;
+  background: #f8fbff;
 }
 
 .case-head {
@@ -346,6 +457,50 @@ textarea {
   margin-top: 18px;
   padding-top: 18px;
   border-top: 1px solid #e5e7eb;
+}
+
+.role-switch-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--admin-muted);
+}
+
+.problem-editor-drawer .arco-drawer {
+  max-width: calc(100vw - 24px);
+}
+
+.problem-editor-drawer .arco-drawer-body {
+  padding: 0;
+}
+
+.problem-editor {
+  display: grid;
+  gap: 18px;
+  min-height: calc(100vh - 150px);
+  padding: 20px 24px 86px;
+}
+
+.problem-editor-tabs .arco-tabs-nav {
+  margin-bottom: 8px;
+}
+
+.problem-editor-section {
+  display: grid;
+  gap: 16px;
+}
+
+.problem-editor-footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 14px 24px;
+  border-top: 1px solid var(--admin-border-soft);
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(10px);
 }
 
 .testcase-uploader .section-title {
@@ -498,6 +653,10 @@ textarea {
   .nav-item {
     justify-content: center;
     text-align: center;
+  }
+
+  .nav-item {
+    gap: 6px;
   }
 
   .stats-grid,

@@ -1,6 +1,6 @@
 <template>
   <section class="view-stack">
-    <a-card :bordered="false">
+    <a-card :bordered="false" class="filter-card">
       <div class="toolbar-row">
         <a-space wrap>
           <a-input-search v-model="filters.keyword" :placeholder="t('adminUsers.search')" allow-clear @search="loadUsers" />
@@ -59,6 +59,13 @@
 
     <a-modal v-model:visible="modalVisible" :title="editingUser ? t('adminUsers.editModal') : t('adminUsers.createModal')" :ok-loading="saving" @ok="saveUser">
       <a-form :model="form" layout="vertical">
+        <a-alert
+          v-if="roleWarning"
+          type="warning"
+          show-icon
+          class="form-alert"
+          :content="roleWarning"
+        />
         <a-form-item v-if="!editingUser" :label="t('common.account')">
           <a-input v-model="form.account" />
         </a-form-item>
@@ -71,10 +78,17 @@
         <a-form-item :label="t('common.email')">
           <a-input v-model="form.email" />
         </a-form-item>
-        <a-form-item :label="t('common.roles')">
-          <a-select v-model="form.roles" multiple>
-            <a-option v-for="role in roles" :key="role.role" :value="role.role">{{ roleLabel(role.role, role.label) }}</a-option>
-          </a-select>
+        <a-form-item :label="t('adminUsers.baseIdentity')">
+          <a-radio-group v-model="form.baseRole" type="button">
+            <a-radio value="STUDENT">{{ t('auth.studentRole') }}</a-radio>
+            <a-radio value="TEACHER">{{ t('auth.teacherRole') }}</a-radio>
+          </a-radio-group>
+        </a-form-item>
+        <a-form-item :label="t('adminUsers.adminPermission')">
+          <div class="role-switch-row">
+            <a-switch v-model="form.adminAccess" />
+            <span>{{ t('adminUsers.adminPermissionCopy') }}</span>
+          </div>
         </a-form-item>
         <a-form-item :label="t('common.enabled')">
           <a-switch v-model="form.enabled" />
@@ -98,6 +112,8 @@ const users = ref<AdminUserResponse[]>([]);
 const roles = ref<RoleResponse[]>([]);
 const modalVisible = ref(false);
 const editingUser = ref<AdminUserResponse | null>(null);
+const roleWarning = ref('');
+type BaseRole = Extract<Role, 'STUDENT' | 'TEACHER'>;
 const filters = reactive<{ keyword: string; role: Role | ''; enabled: boolean | '' }>({
   keyword: '',
   role: '',
@@ -108,7 +124,8 @@ const form = reactive({
   password: '',
   displayName: '',
   email: '',
-  roles: [] as Role[],
+  baseRole: 'STUDENT' as BaseRole | '',
+  adminAccess: false,
   enabled: true
 });
 
@@ -137,8 +154,10 @@ function resetForm() {
   form.password = '';
   form.displayName = '';
   form.email = '';
-  form.roles = ['STUDENT'];
+  form.baseRole = 'STUDENT';
+  form.adminAccess = false;
   form.enabled = true;
+  roleWarning.value = '';
 }
 
 function openCreate() {
@@ -149,23 +168,49 @@ function openCreate() {
 
 function openEdit(user: AdminUserResponse) {
   editingUser.value = user;
+  const hasStudent = user.roles.includes('STUDENT');
+  const hasTeacher = user.roles.includes('TEACHER');
   form.account = user.account;
   form.password = '';
   form.displayName = user.displayName;
   form.email = user.email || '';
-  form.roles = [...user.roles];
+  form.baseRole = hasStudent && hasTeacher ? '' : hasTeacher ? 'TEACHER' : 'STUDENT';
+  form.adminAccess = user.roles.includes('ADMIN');
   form.enabled = user.enabled;
+  roleWarning.value = hasStudent && hasTeacher ? t('adminUsers.roleConflictWarning') : '';
   modalVisible.value = true;
 }
 
+function assembledRoles(): Role[] {
+  const result: Role[] = form.baseRole ? [form.baseRole] : [];
+  if (form.adminAccess) result.push('ADMIN');
+  return result;
+}
+
+function validateRoles(rolesToSave: Role[]) {
+  if (rolesToSave.includes('STUDENT') && rolesToSave.includes('TEACHER')) {
+    return t('adminUsers.roleConflict');
+  }
+  if (!rolesToSave.includes('STUDENT') && !rolesToSave.includes('TEACHER')) {
+    return t('adminUsers.baseIdentityRequired');
+  }
+  return '';
+}
+
 async function saveUser() {
+  const rolesToSave = assembledRoles();
+  const roleError = validateRoles(rolesToSave);
+  if (roleError) {
+    Message.error(roleError);
+    return;
+  }
   saving.value = true;
   try {
     if (editingUser.value) {
       await api.updateUser(editingUser.value.userId, {
         displayName: form.displayName.trim(),
         email: form.email.trim() || undefined,
-        roles: form.roles,
+        roles: rolesToSave,
         enabled: form.enabled
       });
       Message.success(t('adminUsers.userUpdated'));
@@ -175,7 +220,7 @@ async function saveUser() {
         password: form.password,
         displayName: form.displayName.trim(),
         email: form.email.trim() || undefined,
-        roles: form.roles,
+        roles: rolesToSave,
         enabled: form.enabled
       });
       Message.success(t('adminUsers.userCreated'));
@@ -194,7 +239,7 @@ async function disableUser(user: AdminUserResponse) {
     await api.updateUser(user.userId, {
       displayName: user.displayName,
       email: user.email,
-      roles: user.roles,
+      roles: normalizeExistingRoles(user.roles),
       enabled: false
     });
     Message.success(t('adminUsers.userDisabled'));
@@ -202,6 +247,14 @@ async function disableUser(user: AdminUserResponse) {
   } catch (caught) {
     Message.error(caught instanceof Error ? caught.message : t('adminUsers.disableFailed'));
   }
+}
+
+function normalizeExistingRoles(userRoles: Role[]) {
+  const hasTeacher = userRoles.includes('TEACHER');
+  const base: BaseRole = hasTeacher ? 'TEACHER' : 'STUDENT';
+  const normalized: Role[] = [base];
+  if (userRoles.includes('ADMIN')) normalized.push('ADMIN');
+  return normalized;
 }
 
 onMounted(async () => {

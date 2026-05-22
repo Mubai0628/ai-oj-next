@@ -39,7 +39,7 @@ public class AuthController {
     @PostMapping("/register")
     public ApiResponse<TokenResponse> register(@RequestBody @Valid RegisterRequest request) {
         return ApiResponse.ok(tokens(userAccountService.register(request.account(), request.password(),
-                request.displayName(), request.email())));
+                request.displayName(), request.email(), request.role())));
     }
 
     @PostMapping("/login")

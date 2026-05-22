@@ -209,6 +209,8 @@ export interface SubmissionListParams {
   mine?: boolean;
 }
 
+export type AuthExpiredReason = 'unauthorized' | 'refresh_failed';
+
 const TOKEN_KEY = 'aioj.accessToken';
 const REFRESH_KEY = 'aioj.refreshToken';
 const USER_KEY = 'aioj.user';
@@ -237,6 +239,17 @@ export const authStore = {
     localStorage.removeItem(USER_KEY);
   }
 };
+
+function notifyAuthExpired(reason: AuthExpiredReason) {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new CustomEvent('aioj:auth-expired', { detail: { reason } }));
+}
+
+function expireAuth(reason: AuthExpiredReason) {
+  const hadSession = Boolean(authStore.accessToken || authStore.refreshToken);
+  authStore.clear();
+  if (hadSession) notifyAuthExpired(reason);
+}
 
 function queryString(params: Record<string, unknown> = {}) {
   const search = new URLSearchParams();
@@ -292,9 +305,12 @@ async function request<T>(path: string, init: RequestInit = {}, retry = true): P
       await refreshAccessToken();
       return request<T>(path, init, false);
     } catch (error) {
-      authStore.clear();
+      expireAuth('refresh_failed');
       throw error;
     }
+  }
+  if (response.status === 401) {
+    expireAuth('unauthorized');
   }
   return parseResponse<T>(response);
 }
@@ -305,7 +321,7 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ account, password })
     }),
-  register: (payload: { account: string; password: string; displayName: string; email?: string }) =>
+  register: (payload: { account: string; password: string; displayName: string; email?: string; role?: 'STUDENT' | 'TEACHER' }) =>
     request<TokenResponse>('/api/v1/auth/register', { method: 'POST', body: JSON.stringify(payload) }),
   refresh: () => refreshAccessToken(),
   logout: () => request<boolean>('/api/v1/auth/logout', { method: 'POST', body: '{}' }).finally(() => authStore.clear()),
@@ -419,8 +435,16 @@ export async function streamAi(
     body: JSON.stringify(payload)
   });
   if (response.status === 401 && authStore.refreshToken) {
-    await refreshAccessToken();
-    return streamAi(payload, onEvent);
+    try {
+      await refreshAccessToken();
+      return streamAi(payload, onEvent);
+    } catch (error) {
+      expireAuth('refresh_failed');
+      throw error;
+    }
+  }
+  if (response.status === 401) {
+    expireAuth('unauthorized');
   }
   if (!response.ok) {
     throw new Error(`AI stream failed: ${response.status}`);

@@ -1,6 +1,6 @@
 <template>
   <section class="view-stack">
-    <a-card :bordered="false">
+    <a-card :bordered="false" class="filter-card">
       <div class="toolbar-row">
         <a-space wrap>
           <a-input-search v-model="filters.keyword" :placeholder="t('problems.searchAdminPlaceholder')" allow-clear @search="loadProblems" />
@@ -59,70 +59,21 @@
       <a-empty v-if="!loading && problems.length === 0" :description="t('problems.adminEmpty')" />
     </a-card>
 
-    <a-modal
+    <ProblemEditorDrawer
       v-model:visible="modalVisible"
-      :title="editingId ? t('problems.editModal') : t('problems.createModal')"
-      :ok-loading="saving"
-      width="900px"
-      @ok="saveProblem"
-    >
-      <a-form :model="form" layout="vertical">
-        <div class="form-grid two">
-          <a-form-item :label="t('problems.titleLabel')">
-            <a-input v-model="form.title" />
-          </a-form-item>
-          <a-form-item :label="t('common.difficulty')">
-            <a-select v-model="form.difficulty">
-              <a-option v-for="difficulty in difficulties" :key="difficulty" :value="difficulty">{{ difficultyLabel(difficulty) }}</a-option>
-            </a-select>
-          </a-form-item>
-          <a-form-item :label="t('common.tags')">
-            <a-input v-model="tagText" :placeholder="t('problems.tagsPlaceholder')" />
-          </a-form-item>
-          <div class="form-grid two compact">
-            <a-form-item :label="t('problems.timeLimit')">
-              <a-input-number v-model="form.timeLimitMillis" :min="100" :step="100" hide-button>
-                <template #suffix>ms</template>
-              </a-input-number>
-            </a-form-item>
-            <a-form-item :label="t('problems.memoryLimit')">
-              <a-input-number v-model="memoryLimitMb" :min="16" :step="16" hide-button>
-                <template #suffix>MB</template>
-              </a-input-number>
-            </a-form-item>
-          </div>
-        </div>
-        <a-form-item :label="t('problems.statement')">
-          <a-textarea v-model="form.statement" :auto-size="{ minRows: 8, maxRows: 14 }" />
-        </a-form-item>
-        <div class="section-title">
-          <h2>{{ t('problems.testCases') }}</h2>
-          <a-button size="small" @click="addCase">{{ t('problems.addCase') }}</a-button>
-        </div>
-        <div class="case-list">
-          <section v-for="(testCase, index) in form.testCases" :key="index" class="case-card">
-            <div class="case-head">
-              <strong>{{ t('problems.caseTitle', { index: index + 1 }) }}</strong>
-              <a-space>
-                <a-checkbox v-model="testCase.sample">{{ t('problems.sample') }}</a-checkbox>
-                <a-button size="mini" status="danger" :disabled="form.testCases.length === 1" @click="removeCase(index)">
-                  {{ t('common.remove') }}
-                </a-button>
-              </a-space>
-            </div>
-            <div class="form-grid two">
-              <a-form-item :label="t('problems.input')">
-                <a-textarea v-model="testCase.input" :auto-size="{ minRows: 3, maxRows: 6 }" />
-              </a-form-item>
-              <a-form-item :label="t('problems.expectedOutput')">
-                <a-textarea v-model="testCase.expectedOutput" :auto-size="{ minRows: 3, maxRows: 6 }" />
-              </a-form-item>
-            </div>
-          </section>
-        </div>
-        <TestcasePackageUploader :problem-id="editingId" />
-      </a-form>
-    </a-modal>
+      :editing-id="editingId"
+      :form="form"
+      :tag-text="tagText"
+      :memory-limit-mb="memoryLimitMb"
+      :difficulties="difficulties"
+      :saving="saving"
+      :difficulty-label="difficultyLabel"
+      @update:tag-text="tagText = $event"
+      @update:memory-limit-mb="memoryLimitMb = $event"
+      @add-case="addCase"
+      @remove-case="removeCase"
+      @save="saveProblem"
+    />
   </section>
 </template>
 
@@ -131,7 +82,7 @@ import { computed, onMounted, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Message } from '@arco-design/web-vue';
 import { api, type Difficulty, type EntityId, type ProblemPayload, type ProblemResponse, type TestCaseDto } from '@aioj/api-client';
-import TestcasePackageUploader from '@/components/TestcasePackageUploader.vue';
+import ProblemEditorDrawer from '@/components/ProblemEditorDrawer.vue';
 
 const { t } = useI18n();
 const difficulties: Difficulty[] = ['EASY', 'MEDIUM', 'HARD', 'CHALLENGE'];
@@ -258,13 +209,22 @@ async function loadProblems() {
 }
 
 async function saveProblem() {
+  const problemPayload = payload();
+  const validationError = validatePayload(problemPayload);
+  if (validationError) {
+    Message.error(validationError);
+    return;
+  }
+  if (problemPayload.testCases.some((testCase) => !testCase.input.trim() || !testCase.expectedOutput.trim())) {
+    Message.warning(t('problems.emptySampleWarning'));
+  }
   saving.value = true;
   try {
     if (editingId.value) {
-      await api.updateProblem(editingId.value, payload());
+      await api.updateProblem(editingId.value, problemPayload);
       Message.success(t('problems.updated'));
     } else {
-      await api.createProblem(payload());
+      await api.createProblem(problemPayload);
       Message.success(t('problems.created'));
     }
     modalVisible.value = false;
@@ -274,6 +234,16 @@ async function saveProblem() {
   } finally {
     saving.value = false;
   }
+}
+
+function validatePayload(problemPayload: ProblemPayload) {
+  if (!problemPayload.title) return t('problems.titleRequired');
+  if (!problemPayload.statement) return t('problems.statementRequired');
+  if (problemPayload.timeLimitMillis < 100) return t('problems.timeLimitInvalid');
+  if (problemPayload.memoryLimitKb < 16 * 1024) return t('problems.memoryLimitInvalid');
+  if (!problemPayload.testCases.length) return t('problems.sampleRequired');
+  if (!problemPayload.testCases.some((testCase) => testCase.sample)) return t('problems.sampleRequired');
+  return '';
 }
 
 async function deleteProblem(id: EntityId) {
