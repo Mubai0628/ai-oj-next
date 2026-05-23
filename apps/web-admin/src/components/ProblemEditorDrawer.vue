@@ -23,9 +23,7 @@
         </a-tabs>
 
         <section v-if="activeTab === 'basic'" class="problem-editor-section">
-          <a-alert type="info" show-icon class="problem-editor-alert problem-editor-notice">
-            {{ t('problems.basicInfoTip') }}
-          </a-alert>
+          <p class="problem-editor-inline-tip">{{ t('problems.basicInfoTip') }}</p>
 
           <div class="basic-info-layout">
             <article class="basic-form-card">
@@ -126,14 +124,16 @@
                     <button type="button" @click="insertStatementTool(tool)">{{ tool.label }}</button>
                   </a-tooltip>
                 </div>
-                <a-textarea
-                  ref="statementTextareaRef"
-                  v-model="form.statement"
-                  class="statement-textarea"
-                  :placeholder="t('problems.statementPlaceholder')"
-                  :auto-size="{ minRows: 14, maxRows: 22 }"
-                />
-                <div class="editor-count">{{ t('problems.charCount', { count: form.statement.length, max: 20000 }) }}</div>
+                <div class="statement-textarea-shell">
+                  <a-textarea
+                    ref="statementTextareaRef"
+                    v-model="form.statement"
+                    class="statement-textarea"
+                    :placeholder="t('problems.statementPlaceholder')"
+                    :auto-size="{ minRows: 10, maxRows: 20 }"
+                  />
+                  <div class="editor-count">{{ t('problems.charCount', { count: form.statement.length, max: 20000 }) }}</div>
+                </div>
                 <div class="statement-helper">{{ t('problems.statementHelper') }}</div>
               </article>
             </div>
@@ -163,12 +163,12 @@
                       </a-space>
                     </div>
                     <div class="sample-card-body">
-                      <div class="sample-grid">
-                        <a-form-item :label="t('problems.input')">
-                          <a-textarea v-model="testCase.input" class="sample-textarea" :auto-size="{ minRows: 4, maxRows: 8 }" />
+                      <div class="sample-stack">
+                        <a-form-item :label="t('problems.input')" class="sample-field">
+                          <a-textarea v-model="testCase.input" class="sample-textarea" :auto-size="{ minRows: 3, maxRows: 12 }" />
                         </a-form-item>
-                        <a-form-item :label="t('problems.expectedOutput')">
-                          <a-textarea v-model="testCase.expectedOutput" class="sample-textarea" :auto-size="{ minRows: 4, maxRows: 8 }" />
+                        <a-form-item :label="t('problems.expectedOutput')" class="sample-field">
+                          <a-textarea v-model="testCase.expectedOutput" class="sample-textarea" :auto-size="{ minRows: 3, maxRows: 12 }" />
                         </a-form-item>
                       </div>
                     </div>
