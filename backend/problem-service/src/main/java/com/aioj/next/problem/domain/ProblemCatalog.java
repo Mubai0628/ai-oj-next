@@ -66,7 +66,7 @@ public class ProblemCatalog {
     public ProblemResponse create(ProblemCreateRequest request, boolean aiGenerated) {
         Instant now = Instant.now();
         ProblemEntity problem = new ProblemEntity();
-        apply(problem, request.title(), request.difficulty(), request.statement(), request.tags(),
+        apply(problem, request.title(), request.difficulty(), request.statement(), request.notes(), request.tags(),
                 request.timeLimitMillis(), request.memoryLimitKb());
         problem.setAiGenerated(aiGenerated);
         problem.setCreatedBy(SecuritySupport.currentUserId());
@@ -81,7 +81,7 @@ public class ProblemCatalog {
     @Transactional
     public ProblemResponse update(Long id, ProblemUpdateRequest request) {
         ProblemEntity problem = requireActiveProblem(id);
-        apply(problem, request.title(), request.difficulty(), request.statement(), request.tags(),
+        apply(problem, request.title(), request.difficulty(), request.statement(), request.notes(), request.tags(),
                 request.timeLimitMillis(), request.memoryLimitKb());
         problem.setUpdatedAt(Instant.now());
         problemMapper.updateById(problem);
@@ -109,11 +109,12 @@ public class ProblemCatalog {
         return new LambdaQueryWrapper<ProblemEntity>().eq(ProblemEntity::getDeleted, false);
     }
 
-    private void apply(ProblemEntity problem, String title, Difficulty difficulty, String statement, List<String> tags,
-                       int timeLimitMillis, int memoryLimitKb) {
+    private void apply(ProblemEntity problem, String title, Difficulty difficulty, String statement, String notes,
+                       List<String> tags, int timeLimitMillis, int memoryLimitKb) {
         problem.setTitle(title);
         problem.setDifficulty(difficulty);
         problem.setStatement(statement);
+        problem.setNotes(normalizeNotes(notes));
         problem.setTags(toJson(tags == null ? List.of() : tags));
         problem.setTimeLimitMillis(timeLimitMillis <= 0 ? DEFAULT_TIME_LIMIT_MILLIS : timeLimitMillis);
         problem.setMemoryLimitKb(memoryLimitKb <= 0 ? DEFAULT_MEMORY_LIMIT_KB : memoryLimitKb);
@@ -145,8 +146,12 @@ public class ProblemCatalog {
                         Boolean.TRUE.equals(testCase.getSample())))
                 .toList();
         return new ProblemResponse(problem.getId(), problem.getTitle(), problem.getDifficulty(), problem.getStatement(),
-                fromJson(problem.getTags()), samples, problem.getTimeLimitMillis(), problem.getMemoryLimitKb(),
+                problem.getNotes(), fromJson(problem.getTags()), samples, problem.getTimeLimitMillis(), problem.getMemoryLimitKb(),
                 Boolean.TRUE.equals(problem.getAiGenerated()), problem.getCreatedAt());
+    }
+
+    private String normalizeNotes(String notes) {
+        return StringUtils.hasText(notes) ? notes.trim() : null;
     }
 
     private String toJson(List<String> tags) {

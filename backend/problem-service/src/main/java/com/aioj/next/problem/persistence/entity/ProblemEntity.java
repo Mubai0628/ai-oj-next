@@ -14,6 +14,7 @@ public class ProblemEntity {
     private String title;
     private Difficulty difficulty;
     private String statement;
+    private String notes;
     private String tags;
     private Integer timeLimitMillis;
     private Integer memoryLimitKb;
@@ -53,6 +54,14 @@ public class ProblemEntity {
 
     public void setStatement(String statement) {
         this.statement = statement;
+    }
+
+    public String getNotes() {
+        return notes;
+    }
+
+    public void setNotes(String notes) {
+        this.notes = notes;
     }
 
     public String getTags() {

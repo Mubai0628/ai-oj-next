@@ -15,6 +15,7 @@ public record ProblemUpdateRequest(
         List<String> tags,
         @NotEmpty List<@Valid TestCaseDto> testCases,
         int timeLimitMillis,
-        int memoryLimitKb
+        int memoryLimitKb,
+        @Size(max = 20000) String notes
 ) {
 }

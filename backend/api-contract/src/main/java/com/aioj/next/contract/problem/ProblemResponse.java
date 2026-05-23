@@ -8,6 +8,7 @@ public record ProblemResponse(
         String title,
         Difficulty difficulty,
         String statement,
+        String notes,
         List<String> tags,
         List<TestCaseDto> samples,
         int timeLimitMillis,
@@ -16,4 +17,3 @@ public record ProblemResponse(
         Instant createdAt
 ) {
 }
-
