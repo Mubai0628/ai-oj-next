@@ -64,7 +64,6 @@ import { RouterLink, useRoute, useRouter } from 'vue-router';
 import { Modal } from '@arco-design/web-vue';
 import { LanguageSwitcher } from '@aioj/i18n';
 import { OjToolbar } from '@aioj/ui';
-import { useAdminSessionGuard } from '@/composables/useAdminSessionGuard';
 import { useAuthStore } from '@/stores/auth';
 
 const auth = useAuthStore();
@@ -72,7 +71,6 @@ const route = useRoute();
 const router = useRouter();
 const { t } = useI18n();
 const loggingOut = ref(false);
-useAdminSessionGuard();
 
 const navItems = computed(() => [
   { name: 'dashboard', label: t('nav.dashboard'), icon: 'D' },

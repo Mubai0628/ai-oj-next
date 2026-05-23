@@ -1243,3 +1243,16 @@ textarea {
     flex-direction: column;
   }
 }
+
+.auth-switch {
+  margin: 0;
+  color: var(--admin-muted);
+  text-align: center;
+}
+
+.auth-switch a,
+.text-link,
+td a {
+  color: var(--admin-primary);
+  font-weight: 700;
+}

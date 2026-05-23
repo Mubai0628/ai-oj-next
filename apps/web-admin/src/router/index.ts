@@ -10,6 +10,12 @@ const routes: RouteRecordRaw[] = [
     meta: { public: true }
   },
   {
+    path: '/register',
+    name: 'register',
+    component: () => import('@/views/RegisterView.vue'),
+    meta: { public: true }
+  },
+  {
     path: '/blocked',
     name: 'blocked',
     component: () => import('@/views/BlockedView.vue'),
@@ -36,13 +42,29 @@ const router = createRouter({
   routes
 });
 
+window.addEventListener('aioj:auth-expired', () => {
+  const auth = useAuthStore();
+  const currentRoute = router.currentRoute.value;
+
+  auth.clearLocal();
+  if (currentRoute.name === 'login' || currentRoute.name === 'register') return;
+
+  const redirect = currentRoute.fullPath || '/dashboard';
+  void router.replace({ name: 'login', query: { expired: '1', redirect } });
+});
+
 router.beforeEach(async (to) => {
   const auth = useAuthStore();
+
+  if (to.name === 'register') {
+    auth.clearLocal();
+    return true;
+  }
 
   if (to.meta.public) {
     if (!authStore.accessToken) return true;
     try {
-      await auth.loadProfile();
+      await auth.loadProfile(true);
       return auth.isAdmin ? { name: 'dashboard' } : { name: 'blocked' };
     } catch {
       return true;
@@ -55,7 +77,7 @@ router.beforeEach(async (to) => {
   }
 
   try {
-    await auth.loadProfile();
+    await auth.loadProfile(true);
   } catch {
     return { name: 'login', query: { redirect: to.fullPath, expired: '1' } };
   }
