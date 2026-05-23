@@ -188,6 +188,15 @@ async function selectFile(event: Event) {
     return;
   }
 
+  const MAX_BYTES = 200 * 1024 * 1024;
+  if (file.size > MAX_BYTES) {
+    selectedFile.value = null;
+    phase.value = 'failed';
+    error.value = t('testcase.fileTooLarge');
+    if (fileInput.value) fileInput.value.value = '';
+    return;
+  }
+
   selectedFile.value = file;
   phase.value = 'hashing';
   fileSha256.value = await sha256(file);
@@ -285,6 +294,7 @@ async function pollStatus(uploadId: string) {
     }
     await new Promise((resolve) => window.setTimeout(resolve, 2000));
   }
+  throw new Error(t('testcase.pollTimeout'));
 }
 
 async function loadPackages() {

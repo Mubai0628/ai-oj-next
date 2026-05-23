@@ -36,7 +36,14 @@ async function logout() {
 }
 
 async function goLogin() {
-  auth.clearLocal();
-  await router.replace({ name: 'login' });
+  loading.value = true;
+  try {
+    await auth.logout();
+  } catch {
+    // Logout is idempotent here; stale sessions may already be gone server-side.
+  } finally {
+    await router.replace({ name: 'login' });
+    loading.value = false;
+  }
 }
 </script>

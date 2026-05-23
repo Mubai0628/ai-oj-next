@@ -298,9 +298,11 @@ const visibleProxy = computed({
 });
 
 const memoryLimitMb = computed({
-  get: () => Math.round(form.memoryLimitKb / 1024),
+  get: () => form.memoryLimitKb / 1024,
   set: (value: number) => {
-    form.memoryLimitKb = Number(value || 0) * 1024;
+    const mb = Number(value);
+    if (!Number.isFinite(mb) || mb <= 0) return;
+    form.memoryLimitKb = Math.round(mb * 1024);
   }
 });
 
@@ -366,7 +368,7 @@ async function initialize() {
     form.difficulty = detail.difficulty;
     form.statement = detail.statement;
     form.tags = [...detail.tags];
-    form.testCases = detail.samples.length ? detail.samples.map((item, index) => ({ ...item, sample: index === 0 ? true : item.sample })) : [emptyCase(true)];
+    form.testCases = detail.samples.length ? detail.samples.map((item) => ({ ...item })) : [emptyCase(true)];
     form.timeLimitMillis = detail.timeLimitMillis;
     form.memoryLimitKb = detail.memoryLimitKb;
     tagText.value = detail.tags.join(', ');
@@ -417,10 +419,10 @@ function insertStatementTool(tool: StatementTool) {
 }
 
 function payload(): ProblemPayload {
-  const testCases = form.testCases.map((testCase, index) => ({
+  const testCases = form.testCases.map((testCase) => ({
     input: testCase.input,
     expectedOutput: testCase.expectedOutput,
-    sample: index === 0 ? true : testCase.sample
+    sample: testCase.sample
   }));
   return {
     title: form.title.trim(),
@@ -428,8 +430,8 @@ function payload(): ProblemPayload {
     statement: form.statement.trim(),
     tags: parseTags(),
     testCases,
-    timeLimitMillis: Number(form.timeLimitMillis || 1000),
-    memoryLimitKb: Number(form.memoryLimitKb || 262144)
+    timeLimitMillis: Number(form.timeLimitMillis ?? 1000),
+    memoryLimitKb: Number(form.memoryLimitKb ?? 262144)
   };
 }
 

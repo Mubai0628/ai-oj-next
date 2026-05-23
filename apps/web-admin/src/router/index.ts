@@ -56,15 +56,10 @@ window.addEventListener('aioj:auth-expired', () => {
 router.beforeEach(async (to) => {
   const auth = useAuthStore();
 
-  if (to.name === 'register') {
-    auth.clearLocal();
-    return true;
-  }
-
   if (to.meta.public) {
     if (!authStore.accessToken) return true;
     try {
-      await auth.loadProfile(true);
+      await auth.loadProfile();
       return auth.isAdmin ? { name: 'dashboard' } : { name: 'blocked' };
     } catch {
       return true;
@@ -77,7 +72,7 @@ router.beforeEach(async (to) => {
   }
 
   try {
-    await auth.loadProfile(true);
+    await auth.loadProfile();
   } catch {
     return { name: 'login', query: { redirect: to.fullPath, expired: '1' } };
   }
