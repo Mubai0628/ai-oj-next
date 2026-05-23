@@ -1,12 +1,15 @@
 <template>
   <section class="view-stack">
+    <div class="view-toolbar">
+      <a-button :loading="loading" @click="loadDashboard">{{ t('common.refresh') }}</a-button>
+    </div>
+
     <a-alert v-if="error" type="error" show-icon :content="error" />
     <a-spin :loading="loading" :tip="t('dashboard.adminLoading')">
       <section v-if="hasStats" class="stats-grid">
         <OjStat :label="t('dashboard.users')" :value="stats.usersTotal" />
         <OjStat :label="t('dashboard.enabledUsers')" :value="stats.enabledUsers" />
         <OjStat :label="t('dashboard.problems')" :value="stats.problemsTotal" />
-        <OjStat :label="t('dashboard.aiProblems')" :value="stats.aiProblems" />
         <OjStat :label="t('dashboard.pendingDrafts')" :value="stats.pendingDrafts" />
         <OjStat :label="t('dashboard.approvedDrafts')" :value="stats.approvedDrafts" />
       </section>
@@ -52,22 +55,22 @@ const { t } = useI18n();
 const loading = ref(false);
 const error = ref('');
 const usage = ref<AiUsageResponse | null>(null);
+const loaded = ref(false);
 const stats = reactive({
   usersTotal: 0,
   enabledUsers: 0,
   problemsTotal: 0,
-  aiProblems: 0,
   pendingDrafts: 0,
   approvedDrafts: 0
 });
 
-const hasStats = computed(() => Object.values(stats).some((value) => value > 0));
+const hasStats = computed(() => loaded.value);
 const dailyPercent = computed(() => percent(usage.value?.usedToday, usage.value?.dailyLimit));
 const monthlyPercent = computed(() => percent(usage.value?.usedThisMonth, usage.value?.monthlyLimit));
 const health = computed(() => [
   { label: t('dashboard.healthUsers'), ok: stats.usersTotal > 0 },
   { label: t('dashboard.healthProblems'), ok: stats.problemsTotal > 0 },
-  { label: t('dashboard.healthDrafts'), ok: stats.pendingDrafts + stats.approvedDrafts >= 0 },
+  { label: t('dashboard.healthDrafts'), ok: stats.pendingDrafts + stats.approvedDrafts > 0 },
   { label: t('dashboard.healthQuota'), ok: Boolean(usage.value) }
 ]);
 
@@ -76,25 +79,36 @@ function percent(used = 0, limit = 0) {
   return `${Math.min(100, Math.round((used / limit) * 100))}%`;
 }
 
+function settledValue<T>(result: PromiseSettledResult<T>) {
+  return result.status === 'fulfilled' ? result.value : null;
+}
+
 async function loadDashboard() {
   loading.value = true;
   error.value = '';
   try {
-    const [users, problems, pendingDrafts, approvedDrafts, usageResult] = await Promise.all([
-      api.users({ page: 1, pageSize: 20 }),
-      api.problems({ page: 1, pageSize: 20 }),
-      api.problemDrafts({ page: 1, pageSize: 20, status: 'PENDING_REVIEW' }),
-      api.problemDrafts({ page: 1, pageSize: 20, status: 'APPROVED' }),
+    const [usersResult, enabledUsersResult, problemsResult, pendingDraftsResult, approvedDraftsResult, usageResult] = await Promise.allSettled([
+      api.users({ page: 1, pageSize: 1 }),
+      api.users({ page: 1, pageSize: 1, enabled: true }),
+      api.problems({ page: 1, pageSize: 1 }),
+      api.problemDrafts({ page: 1, pageSize: 1, status: 'PENDING_REVIEW' }),
+      api.problemDrafts({ page: 1, pageSize: 1, status: 'APPROVED' }),
       api.usage()
     ]);
 
-    stats.usersTotal = users.total;
-    stats.enabledUsers = users.records.filter((user) => user.enabled).length;
-    stats.problemsTotal = problems.total;
-    stats.aiProblems = problems.records.filter((problem) => problem.aiGenerated).length;
-    stats.pendingDrafts = pendingDrafts.total;
-    stats.approvedDrafts = approvedDrafts.total;
-    usage.value = usageResult;
+    const users = settledValue(usersResult);
+    const enabledUsers = settledValue(enabledUsersResult);
+    const problems = settledValue(problemsResult);
+    const pendingDrafts = settledValue(pendingDraftsResult);
+    const approvedDrafts = settledValue(approvedDraftsResult);
+
+    stats.usersTotal = users?.total ?? 0;
+    stats.enabledUsers = enabledUsers?.total ?? 0;
+    stats.problemsTotal = problems?.total ?? 0;
+    stats.pendingDrafts = pendingDrafts?.total ?? 0;
+    stats.approvedDrafts = approvedDrafts?.total ?? 0;
+    usage.value = settledValue(usageResult);
+    loaded.value = true;
   } catch (caught) {
     error.value = caught instanceof Error ? caught.message : t('dashboard.loadFailed');
   } finally {

@@ -163,29 +163,23 @@ function validationStatusLabel(status: string) {
   return translated === key ? status : translated;
 }
 
-async function loadCounts() {
-  try {
-    const [pending, approved] = await Promise.all([
-      api.problemDrafts({ page: 1, pageSize: 1, status: 'PENDING_REVIEW' }),
-      api.problemDrafts({ page: 1, pageSize: 1, status: 'APPROVED' })
-    ]);
-    pendingCount.value = pending.total;
-    approvedCount.value = approved.total;
-  } catch {
-    pendingCount.value = activeStatus.value === 'PENDING_REVIEW' ? drafts.value.length : pendingCount.value;
-    approvedCount.value = activeStatus.value === 'APPROVED' ? drafts.value.length : approvedCount.value;
-  }
-}
-
 async function loadDrafts() {
   loading.value = true;
   listError.value = '';
   try {
-    const page = await api.problemDrafts({ page: 1, pageSize: 50, status: activeStatus.value });
+    const oppositeStatus = activeStatus.value === 'PENDING_REVIEW' ? 'APPROVED' : 'PENDING_REVIEW';
+    const [page, otherCount] = await Promise.all([
+      api.problemDrafts({ page: 1, pageSize: 50, status: activeStatus.value }),
+      api.problemDrafts({ page: 1, pageSize: 1, status: oppositeStatus })
+    ]);
     drafts.value = page.records;
-    if (activeStatus.value === 'PENDING_REVIEW') pendingCount.value = page.total;
-    if (activeStatus.value === 'APPROVED') approvedCount.value = page.total;
-    await loadCounts();
+    if (activeStatus.value === 'PENDING_REVIEW') {
+      pendingCount.value = page.total;
+      approvedCount.value = otherCount.total;
+    } else {
+      approvedCount.value = page.total;
+      pendingCount.value = otherCount.total;
+    }
   } catch (caught) {
     listError.value = caught instanceof Error ? caught.message : t('drafts.loadFailed');
   } finally {

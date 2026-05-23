@@ -93,7 +93,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Message } from '@arco-design/web-vue';
 import {
@@ -164,6 +164,12 @@ function packageStatusColor(status: TestcasePackageStatus) {
   if (status === 'FAILED') return 'red';
   if (status === 'PROCESSING') return 'orange';
   return 'arcoblue';
+}
+
+function clearSelectedFile() {
+  selectedFile.value = null;
+  fileSha256.value = '';
+  if (fileInput.value) fileInput.value.value = '';
 }
 
 async function selectFile(event: Event) {
@@ -260,6 +266,7 @@ async function uploadSelected() {
     if (completed.status === 'READY') {
       phase.value = 'ready';
       Message.success(t('testcase.uploadReady'));
+      clearSelectedFile();
       await loadPackages();
       return;
     }
@@ -287,6 +294,7 @@ async function pollStatus(uploadId: string) {
     if (status.status === 'READY') {
       phase.value = 'ready';
       Message.success(t('testcase.uploadReady'));
+      clearSelectedFile();
       return;
     }
     if (status.status === 'FAILED') {
@@ -319,7 +327,7 @@ async function activatePackage(packageId: EntityId) {
   try {
     const activated = await api.activateTestcasePackage(props.problemId, packageId);
     emit('activated', activated);
-    Message.success(t('testcase.activePackage'));
+    Message.success(t('testcase.activated'));
     await loadPackages();
   } catch (caught) {
     error.value = caught instanceof Error ? caught.message : t('testcase.activateFailed');
@@ -328,6 +336,5 @@ async function activatePackage(packageId: EntityId) {
   }
 }
 
-watch(() => props.problemId, loadPackages);
-onMounted(loadPackages);
+watch(() => props.problemId, loadPackages, { immediate: true });
 </script>

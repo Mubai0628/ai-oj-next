@@ -8,7 +8,15 @@
             <a-option value="">{{ t('problems.allDifficulties') }}</a-option>
             <a-option v-for="difficulty in difficulties" :key="difficulty" :value="difficulty">{{ difficultyLabel(difficulty) }}</a-option>
           </a-select>
-          <a-input v-model="filters.tag" :placeholder="t('problems.tagPlaceholder')" class="filter-control" @press-enter="loadProblems" />
+          <a-input
+            v-model="filters.tag"
+            :placeholder="t('problems.tagPlaceholder')"
+            class="filter-control"
+            allow-clear
+            @press-enter="loadProblems"
+            @blur="loadProblems"
+            @clear="loadProblems"
+          />
         </a-space>
         <a-space wrap>
           <a-button @click="loadProblems">{{ t('common.refresh') }}</a-button>

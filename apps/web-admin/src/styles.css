@@ -364,6 +364,11 @@ textarea {
   min-width: 0;
 }
 
+.view-toolbar {
+  display: flex;
+  justify-content: flex-end;
+}
+
 .toolbar-row,
 .section-title,
 .case-head,
