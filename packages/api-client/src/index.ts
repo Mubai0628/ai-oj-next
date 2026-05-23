@@ -119,6 +119,7 @@ export interface ProblemPayload {
   title: string;
   difficulty: Difficulty;
   statement: string;
+  notes?: string;
   tags: string[];
   testCases: TestCaseDto[];
   timeLimitMillis: number;
@@ -130,6 +131,7 @@ export interface ProblemResponse {
   title: string;
   difficulty: Difficulty;
   statement: string;
+  notes?: string | null;
   tags: string[];
   samples: TestCaseDto[];
   timeLimitMillis: number;

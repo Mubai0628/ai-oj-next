@@ -1463,3 +1463,23 @@ td a {
   color: var(--admin-primary);
   font-weight: 700;
 }
+
+/* Problem editor — markdown editor and vertical stack */
+.problem-editor-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.problem-md-editor {
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.problem-md-editor .md-editor {
+  min-height: 360px;
+}
+
+.problem-md-editor .md-editor-preview {
+  background: #fbfdff;
+}

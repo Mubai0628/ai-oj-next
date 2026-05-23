@@ -11,6 +11,7 @@ export interface ProblemDetailModel {
   title: string;
   difficulty: Difficulty;
   statement: string;
+  notes?: string | null;
   tags: string[];
   samples: ProblemSampleModel[];
   timeLimitMillis: number;
@@ -52,6 +53,7 @@ export function adaptProblem(problem: ProblemResponse): ProblemDetailModel {
     title: problem.title,
     difficulty: problem.difficulty,
     statement: problem.statement,
+    notes: problem.notes ?? null,
     tags: problem.tags ?? [],
     samples: (problem.samples ?? []).map((sample) => ({
       input: sample.input,

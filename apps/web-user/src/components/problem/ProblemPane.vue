@@ -14,7 +14,12 @@
     <section v-if="activeTab === 'statement'" class="problem-tab-panel">
       <div class="problem-section problem-section--statement">
         <h3 class="problem-section__title">{{ t('problems.descriptionTab') }}</h3>
-        <div class="markdown-body problem-statement" v-html="statementHtml" />
+        <MdPreview
+          :model-value="problem.statement || ''"
+          language="zh-CN"
+          preview-theme="github"
+          code-theme="github"
+        />
       </div>
 
       <div class="problem-short-support">
@@ -66,8 +71,19 @@
 
     <section v-else-if="activeTab === 'notes'" class="problem-tab-panel">
       <div class="problem-section">
-        <h3 class="problem-section__title">{{ t('problems.notesTitle') }}</h3>
-        <p class="problem-section__content">{{ t('problems.notesCopy') }}</p>
+        <template v-if="problem.notes">
+          <MdPreview
+            :model-value="problem.notes"
+            language="zh-CN"
+            preview-theme="github"
+            code-theme="github"
+          />
+        </template>
+        <template v-else>
+          <h3 class="problem-section__title">{{ t('problems.notesTitle') }}</h3>
+          <p class="problem-section__content">{{ t('problems.notesCopy') }}</p>
+          <p class="notes-empty">{{ t('problems.notesEmpty') }}</p>
+        </template>
       </div>
       <div class="problem-section">
         <h3 class="problem-section__title">{{ t('problems.limits') }}</h3>
@@ -87,6 +103,8 @@
 
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
+import { MdPreview } from 'md-editor-v3';
+import 'md-editor-v3/lib/preview.css';
 import DifficultyChip from '@/components/common/DifficultyChip.vue';
 import EmptyState from '@/components/common/EmptyState.vue';
 import ProblemMetaChips from '@/components/problem/ProblemMetaChips.vue';
@@ -97,7 +115,6 @@ import type { ProblemDetailModel, ProblemTabKey } from '@/types/problem-workspac
 defineProps<{
   problem: ProblemDetailModel;
   activeTab: ProblemTabKey;
-  statementHtml: string;
 }>();
 
 defineEmits<{

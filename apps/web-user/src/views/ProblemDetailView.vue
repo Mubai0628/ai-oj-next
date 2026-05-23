@@ -21,7 +21,6 @@
         <ProblemPane
           :problem="problem"
           :active-tab="activeTab"
-          :statement-html="statementHtml"
           @update:active-tab="activeTab = $event"
           @copy-sample="copySample"
         />
@@ -105,7 +104,6 @@ import {
   type ProblemTabKey,
   type SubmitResultView
 } from '@/types/problem-workspace';
-import { renderMarkdownLite } from '@/utils/markdown';
 
 const props = defineProps<{ id: string }>();
 
@@ -172,8 +170,6 @@ const languages = computed<CodeLanguage[]>(() => [
   { label: 'C++', value: 'cpp', template: defaultStarter('cpp') },
   { label: 'Python', value: 'python', template: defaultStarter('python') }
 ]);
-
-const statementHtml = computed(() => renderMarkdownLite(problem.value?.statement || ''));
 
 function templateFor(language: string) {
   return languages.value.find((item) => item.value === language)?.template ?? defaultStarter(language);

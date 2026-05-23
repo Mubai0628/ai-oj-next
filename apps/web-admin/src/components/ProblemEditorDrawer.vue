@@ -104,83 +104,85 @@
           </div>
         </section>
 
-        <section v-else-if="activeTab === 'statement'" class="problem-editor-section">
-          <div class="statement-sample-layout">
-            <div class="statement-column">
-              <article class="statement-editor-card">
-                <div class="statement-editor-head">
-                  <div>
-                    <h2>{{ t('problems.statementEditor') }}</h2>
-                    <p>{{ t('problems.statementEditorCopy') }}</p>
-                  </div>
-                  <a-tooltip :content="t('problems.fullscreenUnavailable')">
-                    <span>
-                      <a-button size="small" disabled>{{ t('problems.fullscreenEdit') }}</a-button>
-                    </span>
-                  </a-tooltip>
-                </div>
-                <div class="statement-toolbar" :aria-label="t('problems.statementEditor')">
-                  <a-tooltip v-for="tool in statementTools" :key="tool.label" :content="tool.title">
-                    <button type="button" @click="insertStatementTool(tool)">{{ tool.label }}</button>
-                  </a-tooltip>
-                </div>
-                <div class="statement-textarea-shell">
-                  <a-textarea
-                    ref="statementTextareaRef"
-                    v-model="form.statement"
-                    class="statement-textarea"
-                    :placeholder="t('problems.statementPlaceholder')"
-                    :auto-size="{ minRows: 10, maxRows: 20 }"
-                  />
-                  <div class="editor-count">{{ t('problems.charCount', { count: form.statement.length, max: 20000 }) }}</div>
-                </div>
-                <div class="statement-helper">{{ t('problems.statementHelper') }}</div>
-              </article>
+        <section v-else-if="activeTab === 'statement'" class="problem-editor-section problem-editor-stack">
+          <article class="statement-editor-card">
+            <div class="statement-editor-head">
+              <div>
+                <h2>{{ t('problems.statementEditor') }}</h2>
+                <p>{{ t('problems.statementEditorCopy') }}</p>
+              </div>
+            </div>
+            <MdEditor
+              v-model="form.statement"
+              language="zh-CN"
+              :max-length="20000"
+              preview-theme="github"
+              code-theme="github"
+              :toolbars="statementToolbars"
+              class="problem-md-editor"
+            />
+            <div class="statement-helper">{{ t('problems.statementHelper') }}</div>
+          </article>
+
+          <article class="statement-editor-card">
+            <div class="statement-editor-head">
+              <div>
+                <h2>{{ t('problems.notesLabel') }}</h2>
+                <p>{{ t('problems.notesHelper') }}</p>
+              </div>
+            </div>
+            <MdEditor
+              v-model="form.notes"
+              language="zh-CN"
+              :max-length="20000"
+              preview-theme="github"
+              code-theme="github"
+              :placeholder="t('problems.notesEditorPlaceholder')"
+              :toolbars="notesToolbars"
+              class="problem-md-editor"
+            />
+          </article>
+
+          <article class="sample-section">
+            <div class="section-title">
+              <div>
+                <h2>{{ t('problems.testCases') }}</h2>
+                <p>{{ t('problems.sampleSectionCopy') }}</p>
+              </div>
+              <a-button type="primary" size="small" @click="addCase">{{ t('problems.addCase') }}</a-button>
             </div>
 
-            <div class="sample-column">
-              <article class="sample-section">
-                <div class="section-title">
-                  <div>
-                    <h2>{{ t('problems.testCases') }}</h2>
-                    <p>{{ t('problems.sampleSectionCopy') }}</p>
+            <div class="sample-list">
+              <section v-for="(testCase, index) in form.testCases" :key="index" class="sample-card">
+                <div class="sample-card-header">
+                  <div class="sample-title">
+                    <span class="drag-handle">⋮⋮</span>
+                    <strong>{{ t('problems.caseTitle', { index: index + 1 }) }}</strong>
                   </div>
-                  <a-button type="primary" size="small" @click="addCase">{{ t('problems.addCase') }}</a-button>
+                  <a-space>
+                    <a-checkbox v-model="testCase.sample">{{ t('problems.sample') }}</a-checkbox>
+                    <a-button size="mini" status="danger" :disabled="form.testCases.length === 1" @click="removeCase(index)">
+                      {{ t('common.remove') }}
+                    </a-button>
+                  </a-space>
                 </div>
-
-                <div class="sample-list">
-                  <section v-for="(testCase, index) in form.testCases" :key="index" class="sample-card">
-                    <div class="sample-card-header">
-                      <div class="sample-title">
-                        <span class="drag-handle">⋮⋮</span>
-                        <strong>{{ t('problems.caseTitle', { index: index + 1 }) }}</strong>
-                      </div>
-                      <a-space>
-                        <a-checkbox v-model="testCase.sample">{{ t('problems.sample') }}</a-checkbox>
-                        <a-button size="mini" status="danger" :disabled="form.testCases.length === 1" @click="removeCase(index)">
-                          {{ t('common.remove') }}
-                        </a-button>
-                      </a-space>
-                    </div>
-                    <div class="sample-card-body">
-                      <div class="sample-stack">
-                        <a-form-item :label="t('problems.input')" class="sample-field">
-                          <a-textarea v-model="testCase.input" class="sample-textarea" :auto-size="{ minRows: 3, maxRows: 12 }" />
-                        </a-form-item>
-                        <a-form-item :label="t('problems.expectedOutput')" class="sample-field">
-                          <a-textarea v-model="testCase.expectedOutput" class="sample-textarea" :auto-size="{ minRows: 3, maxRows: 12 }" />
-                        </a-form-item>
-                      </div>
-                    </div>
-                  </section>
+                <div class="sample-card-body">
+                  <div class="sample-stack">
+                    <a-form-item :label="t('problems.input')" class="sample-field">
+                      <a-textarea v-model="testCase.input" class="sample-textarea" :auto-size="{ minRows: 3, maxRows: 12 }" />
+                    </a-form-item>
+                    <a-form-item :label="t('problems.expectedOutput')" class="sample-field">
+                      <a-textarea v-model="testCase.expectedOutput" class="sample-textarea" :auto-size="{ minRows: 3, maxRows: 12 }" />
+                    </a-form-item>
+                  </div>
                 </div>
-
-                <a-alert type="info" show-icon class="problem-editor-alert">
-                  {{ t('problems.sampleHelp') }}
-                </a-alert>
-              </article>
+              </section>
             </div>
-          </div>
+
+            <a-alert type="info" show-icon class="problem-editor-alert">
+              {{ t('problems.sampleHelp') }}
+            </a-alert>
+          </article>
         </section>
 
         <section v-else class="problem-editor-section">
@@ -240,9 +242,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, reactive, ref, watch } from 'vue';
+import { computed, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Message } from '@arco-design/web-vue';
+import { MdEditor } from 'md-editor-v3';
+import type { ToolbarNames } from 'md-editor-v3';
+import 'md-editor-v3/lib/style.css';
 import { api, type Difficulty, type EntityId, type ProblemPayload, type ProblemResponse, type TestCaseDto } from '@aioj/api-client';
 import TestcasePackageUploader from '@/components/TestcasePackageUploader.vue';
 
@@ -263,34 +268,24 @@ const editingId = ref<EntityId | null>(null);
 const tagText = ref('');
 const saving = ref(false);
 const loadingDetail = ref(false);
-const statementTextareaRef = ref<unknown>(null);
 const form = reactive<ProblemPayload>({
   title: '',
   difficulty: 'EASY',
   statement: '',
+  notes: '',
   tags: [],
   testCases: [emptyCase(true)],
   timeLimitMillis: 1000,
   memoryLimitKb: 262144
 });
 
-interface StatementTool {
-  label: string;
-  title: string;
-  before: string;
-  after?: string;
-  placeholder?: string;
-}
-
-const statementTools = computed<StatementTool[]>(() => [
-  { label: 'H', title: t('problems.insertHeading'), before: '\n### ', placeholder: 'Heading', after: '\n' },
-  { label: 'B', title: t('problems.insertBold'), before: '**', placeholder: 'text', after: '**' },
-  { label: 'I', title: t('problems.insertItalic'), before: '*', placeholder: 'text', after: '*' },
-  { label: '•', title: t('problems.insertUnorderedList'), before: '\n- ', placeholder: 'item', after: '\n' },
-  { label: '1.', title: t('problems.insertOrderedList'), before: '\n1. ', placeholder: 'item', after: '\n' },
-  { label: '</>', title: t('problems.insertCodeBlock'), before: '\n```\n', placeholder: 'code', after: '\n```\n' },
-  { label: '🔗', title: t('problems.insertLink'), before: '[', placeholder: 'text', after: '](url)' }
-]);
+const statementToolbars: ToolbarNames[] = [
+  'bold', 'underline', 'italic', '-',
+  'title', 'strikeThrough', 'sub', 'sup', 'quote', 'unorderedList', 'orderedList', 'task', '-',
+  'codeRow', 'code', 'link', 'image', 'table', 'mermaid', 'katex', '-',
+  'revoke', 'next', '-', 'preview', 'previewOnly', 'fullscreen'
+];
+const notesToolbars: ToolbarNames[] = statementToolbars;
 
 const visibleProxy = computed({
   get: () => props.visible,
@@ -349,6 +344,7 @@ function resetForm() {
   form.title = '';
   form.difficulty = 'EASY';
   form.statement = '';
+  form.notes = '';
   form.tags = [];
   form.testCases = [emptyCase(true)];
   form.timeLimitMillis = 1000;
@@ -367,6 +363,7 @@ async function initialize() {
     form.title = detail.title;
     form.difficulty = detail.difficulty;
     form.statement = detail.statement;
+    form.notes = detail.notes || '';
     form.tags = [...detail.tags];
     form.testCases = detail.samples.length ? detail.samples.map((item) => ({ ...item })) : [emptyCase(true)];
     form.timeLimitMillis = detail.timeLimitMillis;
@@ -392,32 +389,6 @@ function removeCase(index: number) {
   }
 }
 
-function getStatementTextarea() {
-  const target = statementTextareaRef.value;
-  if (!target) return null;
-  if (target instanceof HTMLTextAreaElement) return target;
-  if (target instanceof HTMLElement) return target.querySelector('textarea');
-  const component = target as { $el?: HTMLElement };
-  return component.$el?.querySelector('textarea') ?? null;
-}
-
-function insertStatementTool(tool: StatementTool) {
-  const textarea = getStatementTextarea();
-  const selectedText = textarea ? form.statement.slice(textarea.selectionStart, textarea.selectionEnd) : '';
-  const content = `${tool.before}${selectedText || tool.placeholder || ''}${tool.after || ''}`;
-  const start = textarea?.selectionStart ?? form.statement.length;
-  const end = textarea?.selectionEnd ?? form.statement.length;
-  form.statement = `${form.statement.slice(0, start)}${content}${form.statement.slice(end)}`;
-
-  void nextTick(() => {
-    const currentTextarea = getStatementTextarea();
-    if (!currentTextarea) return;
-    const cursor = start + content.length;
-    currentTextarea.focus();
-    currentTextarea.setSelectionRange(cursor, cursor);
-  });
-}
-
 function payload(): ProblemPayload {
   const testCases = form.testCases.map((testCase) => ({
     input: testCase.input,
@@ -428,6 +399,7 @@ function payload(): ProblemPayload {
     title: form.title.trim(),
     difficulty: form.difficulty,
     statement: form.statement.trim(),
+    notes: (form.notes || '').trim() || undefined,
     tags: parseTags(),
     testCases,
     timeLimitMillis: Number(form.timeLimitMillis ?? 1000),
