@@ -211,3 +211,14 @@ graphify explain "TestcasePackageService"   # 解释一个概念
 - `graphify query "TestcasePackage 怎么从上传走到判题"`
 - `graphify path "JudgeTaskListener" "TestcasePackageEntity"`
 - `graphify explain "<某个类>"`
+
+## 9. Companion Docs（每个新 Claude 会话也要看一眼）
+
+| 文件 | 内容 | 何时读 |
+|---|---|---|
+| `docs/HANDOVER.md` | 当前真实进度快照（已完成 / 待补 / 风险） | **每次会话启动必读**——是项目"现状"基准 |
+| `docs/ROADMAP.md` | 阶段化路线图（含用户组等扩展规划） | 接到新任务时核对优先级 |
+| `docs/DEVELOPMENT.md` | 完整开发习惯（Git、UI、本地环境等细节） | 提交、改 UI、改环境前 |
+| `docs/codex-prompts/` | 历史 + 待执行的 Codex 提示词（`.txt`） | 看历次改动的设计意图 |
+
+工作流：本会话设计 → 我输出 `.txt` 提示词 → 用户转交 Codex 执行 → 用户回传结果。HANDOVER 和 ROADMAP 是**活文档**，每次有功能落地或推进，更新对应条目。
