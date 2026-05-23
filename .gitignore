@@ -12,3 +12,13 @@ deploy/secrets/*.pem
 deploy/secrets/*.key
 deploy/data/
 
+# --- Added by archiving task ---
+# Graphify knowledge graph (regenerate locally with: graphify update .)
+graphify-out/
+
+# Frontend dev server stray logs
+apps/*/dev-server*.log
+apps/*/dev-server.err.log
+
+# Runtime logs
+logs/
