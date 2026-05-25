@@ -1484,6 +1484,91 @@ td a {
   background: #fbfdff;
 }
 
+/* AI draft detail workstation */
+.draft-detail-drawer .arco-drawer-body {
+  padding-top: 18px;
+}
+
+.draft-detail-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.draft-detail-head h2 {
+  margin: 4px 0 10px;
+}
+
+.draft-detail-eyebrow {
+  margin: 0;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.draft-detail-tabs .arco-tabs-content {
+  padding-top: 16px;
+}
+
+.draft-preview-panel,
+.draft-edit-form,
+.draft-regenerate-form,
+.draft-cases-section,
+.draft-case-card {
+  display: grid;
+  gap: 16px;
+}
+
+.draft-error-list {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.draft-test-table pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.draft-edit-grid,
+.draft-case-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 16px;
+}
+
+.draft-edit-wide {
+  grid-column: 1 / -1;
+}
+
+.draft-md-editor .md-editor {
+  min-height: 360px;
+}
+
+.draft-cases-head,
+.draft-case-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.draft-case-card {
+  padding: 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+@media (max-width: 760px) {
+  .draft-detail-head,
+  .draft-edit-grid,
+  .draft-case-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+}
+
 .auth-overlay {
   position: fixed;
   inset: 0;

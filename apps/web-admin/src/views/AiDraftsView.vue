@@ -64,7 +64,15 @@
       </div>
 
       <a-alert v-if="listError" type="error" show-icon :content="listError" />
-      <a-table v-if="drafts.length || loading" :data="drafts" :loading="loading" :pagination="false" row-key="id" :scroll="{ x: 1040 }">
+      <a-table
+        v-if="drafts.length || loading"
+        :data="drafts"
+        :loading="loading"
+        :pagination="false"
+        row-key="id"
+        :scroll="{ x: 940 }"
+        @row-click="openDetail"
+      >
         <template #columns>
           <a-table-column :title="t('common.title')" data-index="title" :width="220" />
           <a-table-column :title="t('common.difficulty')" :width="120">
@@ -93,22 +101,11 @@
               <a-tag v-else>{{ t('drafts.notImported') }}</a-tag>
             </template>
           </a-table-column>
-          <a-table-column :title="t('common.actions')" :width="330" fixed="right">
+          <a-table-column :title="t('common.actions')" :width="120" fixed="right">
             <template #cell="{ record }">
-              <a-space>
-                <a-button size="small" :disabled="activeStatus === 'APPROVED'" @click="approveDraft(record.id)">
-                  {{ t('drafts.approve') }}
-                </a-button>
-                <a-popconfirm :content="t('drafts.rejectConfirm')" @ok="openRejectModal(record)">
-                  <a-button size="small" status="warning" :disabled="!!record.importedProblemId">{{ t('drafts.reject') }}</a-button>
-                </a-popconfirm>
-                <a-popconfirm :content="t('drafts.importConfirm')" @ok="importDraft(record)">
-                  <a-button size="small" type="primary" :disabled="!!record.importedProblemId">{{ t('drafts.import') }}</a-button>
-                </a-popconfirm>
-                <a-popconfirm :content="t('drafts.deleteConfirm')" @ok="deleteDraft(record.id)">
-                  <a-button size="small" type="outline" status="danger" :disabled="!!record.importedProblemId">{{ t('common.delete') }}</a-button>
-                </a-popconfirm>
-              </a-space>
+              <a-button size="small" type="outline" @click.stop="openDetail(record)">
+                {{ t('drafts.detailTabsEdit') }}
+              </a-button>
             </template>
           </a-table-column>
         </template>
@@ -141,6 +138,18 @@
         </a-form-item>
       </a-form>
     </a-modal>
+
+    <AiDraftDetailDrawer
+      v-model:visible="detailVisible"
+      :draft="selectedDraft"
+      @refined="handleDraftUpdated"
+      @regenerated="handleDraftUpdated"
+      @approve="(draft) => approveDraft(draft.id)"
+      @import-draft="importDraft"
+      @reject="openRejectModal"
+      @delete="(draft) => deleteDraft(draft.id)"
+      @open-draft="openDraftById"
+    />
   </section>
 </template>
 
@@ -149,6 +158,7 @@ import { computed, onMounted, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Message } from '@arco-design/web-vue';
 import { ApiError, api, type Difficulty, type EntityId, type ProblemDraftResponse } from '@aioj/api-client';
+import AiDraftDetailDrawer from '@/components/AiDraftDetailDrawer.vue';
 
 type DraftStatus = 'PENDING_REVIEW' | 'APPROVED';
 
@@ -168,6 +178,8 @@ const generating = ref(false);
 const rejecting = ref(false);
 const rejectModalVisible = ref(false);
 const rejectTarget = ref<ProblemDraftResponse | null>(null);
+const detailVisible = ref(false);
+const selectedDraft = ref<ProblemDraftResponse | null>(null);
 const rejectForm = reactive({
   reasonNote: ''
 });
@@ -229,6 +241,25 @@ function focusGenerate() {
   input?.focus();
 }
 
+function openDetail(draft: ProblemDraftResponse | Record<string, unknown>) {
+  selectedDraft.value = draft as ProblemDraftResponse;
+  detailVisible.value = true;
+}
+
+async function openDraftById(id: EntityId) {
+  try {
+    selectedDraft.value = await api.problemDraft(id);
+    detailVisible.value = true;
+  } catch (caught) {
+    Message.error(caught instanceof ApiError ? caught.userMessage : (caught instanceof Error ? caught.message : t('drafts.loadFailed')));
+  }
+}
+
+async function handleDraftUpdated(draft: ProblemDraftResponse) {
+  selectedDraft.value = draft;
+  await loadDrafts();
+}
+
 async function generateDraft() {
   generating.value = true;
   generateError.value = '';
@@ -262,7 +293,8 @@ async function generateDraft() {
 
 async function approveDraft(id: EntityId) {
   try {
-    await api.approveDraft(id, false);
+    const approved = await api.approveDraft(id, false);
+    if (selectedDraft.value?.id === id) selectedDraft.value = approved;
     Message.success(t('drafts.approvedMessage'));
     await loadDrafts();
   } catch (caught) {
@@ -296,6 +328,7 @@ async function confirmReject() {
 async function importDraft(draft: ProblemDraftResponse) {
   try {
     const imported = await api.approveDraft(draft.id, true);
+    if (selectedDraft.value?.id === draft.id) selectedDraft.value = imported;
     Message.success(imported.importedProblemId ? t('drafts.importedAs', { id: imported.importedProblemId }) : t('drafts.approvedMessage'));
     await loadDrafts();
   } catch (caught) {
@@ -306,6 +339,10 @@ async function importDraft(draft: ProblemDraftResponse) {
 async function deleteDraft(id: EntityId) {
   try {
     await api.deleteDraft(id);
+    if (selectedDraft.value?.id === id) {
+      selectedDraft.value = null;
+      detailVisible.value = false;
+    }
     Message.success(t('drafts.deletedMessage'));
     await loadDrafts();
   } catch (caught) {
