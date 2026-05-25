@@ -15,8 +15,43 @@ export interface ApiResponse<T> {
   code: number;
   message: string;
   data: T;
+  details?: Record<string, string> | null;
   traceId: string;
   timestamp: string;
+}
+
+export type ApiErrorDetails = Record<string, string>;
+
+export class ApiError extends Error {
+  readonly code: number;
+  readonly details: ApiErrorDetails | null;
+  readonly traceId: string | null;
+  readonly serverMessage: string;
+
+  constructor(code: number, serverMessage: string, details: ApiErrorDetails | null = null, traceId: string | null = null) {
+    super(serverMessage);
+    this.name = 'ApiError';
+    this.code = code;
+    this.details = details;
+    this.traceId = traceId;
+    this.serverMessage = serverMessage;
+    Object.setPrototypeOf(this, ApiError.prototype);
+  }
+
+  get userMessage(): string {
+    const resolved = messageResolver?.(this.code, this.serverMessage);
+    return resolved || this.serverMessage || 'Unknown error';
+  }
+
+  fieldError(path: string): string | undefined {
+    return this.details?.[path];
+  }
+}
+
+let messageResolver: ((code: number, fallback: string) => string | undefined) | null = null;
+
+export function setApiErrorMessageResolver(resolver: (code: number, fallback: string) => string | undefined): void {
+  messageResolver = resolver;
 }
 
 export interface PageResponse<T> {
@@ -272,7 +307,11 @@ async function parseResponse<T>(response: Response): Promise<T> {
   const text = await response.text();
   const payload = text ? JSON.parse(preserveLargeIntegerIds(text)) as ApiResponse<T> : null;
   if (!response.ok || !payload || payload.code !== 0) {
-    throw new Error(payload?.message || `Request failed: ${response.status}`);
+    const code = payload?.code ?? response.status * 100;
+    const message = payload?.message || `Request failed: ${response.status}`;
+    const details = payload?.details && typeof payload.details === 'object' ? payload.details as ApiErrorDetails : null;
+    const traceId = payload?.traceId ?? null;
+    throw new ApiError(code, message, details, traceId);
   }
   return payload.data;
 }

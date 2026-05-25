@@ -55,7 +55,7 @@ import { reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import { Message } from '@arco-design/web-vue';
-import { api, authStore, type Role } from '@aioj/api-client';
+import { ApiError, api, authStore, type Role } from '@aioj/api-client';
 
 const router = useRouter();
 const { t } = useI18n();
@@ -110,7 +110,7 @@ async function register() {
     Message.success(t('auth.adminRegisterSuccess'));
     await router.replace({ name: 'login', query: { registered: '1', account } });
   } catch (caught) {
-    error.value = caught instanceof Error ? caught.message : t('auth.registerFailed');
+    error.value = caught instanceof ApiError ? caught.userMessage : (caught instanceof Error ? caught.message : t('auth.registerFailed'));
   } finally {
     registering.value = false;
   }

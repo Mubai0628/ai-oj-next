@@ -44,6 +44,23 @@ export const messages = {
       active: '当前启用',
       failed: '失败'
     },
+    errors: {
+      '40000': '请求参数有误。',
+      '40001': '提交内容未通过校验，请检查标红字段。',
+      '40002': '请求格式错误，无法解析。',
+      '40003': '缺少必要的参数。',
+      '40004': '参数类型不正确。',
+      '40100': '请先登录。',
+      '40300': '没有权限执行该操作。',
+      '40400': '请求的资源不存在。',
+      '40500': '该请求方式不被支持。',
+      '40900': '操作与现有数据冲突。',
+      '41300': '上传内容超出大小限制。',
+      '42900': '请求过于频繁，请稍后再试。',
+      '50000': '服务器内部错误，请稍后再试。',
+      '50300': '依赖服务暂不可用。',
+      unknown: '操作失败，请稍后再试。'
+    },
     locale: {
       label: '语言',
       zh: '中文',
@@ -711,6 +728,23 @@ export const messages = {
       created: 'Created',
       active: 'Active',
       failed: 'Failed'
+    },
+    errors: {
+      '40000': 'Bad request.',
+      '40001': 'Some fields are invalid. Please fix the highlighted ones.',
+      '40002': 'Malformed request body.',
+      '40003': 'Missing required parameter.',
+      '40004': 'Parameter type is incorrect.',
+      '40100': 'Please sign in.',
+      '40300': 'You do not have permission for this action.',
+      '40400': 'The requested resource was not found.',
+      '40500': 'HTTP method not allowed.',
+      '40900': 'Operation conflicts with existing data.',
+      '41300': 'Upload exceeds the size limit.',
+      '42900': 'Too many requests. Please try again later.',
+      '50000': 'Internal server error. Please retry later.',
+      '50300': 'Upstream service is unavailable.',
+      unknown: 'Operation failed. Please try again.'
     },
     locale: {
       label: 'Language',

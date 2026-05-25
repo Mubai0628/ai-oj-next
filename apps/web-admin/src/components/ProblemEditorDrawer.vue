@@ -21,6 +21,9 @@
           <a-tab-pane key="statement" :title="t('problems.editorStatement')" />
           <a-tab-pane key="package" :title="t('problems.editorPackage')" />
         </a-tabs>
+        <a-alert v-if="orphanedFieldErrors.length" type="error" show-icon class="form-alert">
+          {{ orphanedFieldErrors.join('；') }}
+        </a-alert>
 
         <section v-if="activeTab === 'basic'" class="problem-editor-section">
           <p class="problem-editor-inline-tip">{{ t('problems.basicInfoTip') }}</p>
@@ -28,7 +31,12 @@
           <div class="basic-info-layout">
             <article class="basic-form-card">
               <div class="basic-form-grid">
-                <a-form-item class="basic-form-field basic-form-field--wide" :label="requiredLabel(t('problems.titleLabel'))">
+                <a-form-item
+                  class="basic-form-field basic-form-field--wide"
+                  :label="requiredLabel(t('problems.titleLabel'))"
+                  :validate-status="fieldError('title') ? 'error' : undefined"
+                  :help="fieldError('title') || undefined"
+                >
                   <a-input v-model="form.title" :max-length="100" :placeholder="t('problems.titlePlaceholder')" />
                   <template #extra>{{ t('problems.charCount', { count: form.title.length, max: 100 }) }}</template>
                 </a-form-item>
@@ -51,14 +59,22 @@
                   </template>
                 </a-form-item>
 
-                <a-form-item :label="requiredLabel(t('problems.timeLimit'))">
+                <a-form-item
+                  :label="requiredLabel(t('problems.timeLimit'))"
+                  :validate-status="fieldError('timeLimitMillis') ? 'error' : undefined"
+                  :help="fieldError('timeLimitMillis') || undefined"
+                >
                   <a-input-number v-model="form.timeLimitMillis" :min="100" :step="100" hide-button>
                     <template #suffix>ms</template>
                   </a-input-number>
                   <template #extra>{{ t('problems.timeLimitHelper') }}</template>
                 </a-form-item>
 
-                <a-form-item :label="requiredLabel(t('problems.memoryLimit'))">
+                <a-form-item
+                  :label="requiredLabel(t('problems.memoryLimit'))"
+                  :validate-status="fieldError('memoryLimitKb') ? 'error' : undefined"
+                  :help="fieldError('memoryLimitKb') || undefined"
+                >
                   <a-input-number v-model="memoryLimitMb" :min="16" :step="16" hide-button>
                     <template #suffix>MB</template>
                   </a-input-number>
@@ -112,15 +128,21 @@
                 <p>{{ t('problems.statementEditorCopy') }}</p>
               </div>
             </div>
-            <MdEditor
-              v-model="form.statement"
-              language="zh-CN"
-              :max-length="20000"
-              preview-theme="github"
-              code-theme="github"
-              :toolbars="statementToolbars"
-              class="problem-md-editor"
-            />
+            <a-form-item
+              class="editor-form-item"
+              :validate-status="fieldError('statement') ? 'error' : undefined"
+              :help="fieldError('statement') || undefined"
+            >
+              <MdEditor
+                v-model="form.statement"
+                language="zh-CN"
+                :max-length="20000"
+                preview-theme="github"
+                code-theme="github"
+                :toolbars="statementToolbars"
+                class="problem-md-editor"
+              />
+            </a-form-item>
             <div class="statement-helper">{{ t('problems.statementHelper') }}</div>
           </article>
 
@@ -131,16 +153,22 @@
                 <p>{{ t('problems.notesHelper') }}</p>
               </div>
             </div>
-            <MdEditor
-              v-model="form.notes"
-              language="zh-CN"
-              :max-length="20000"
-              preview-theme="github"
-              code-theme="github"
-              :placeholder="t('problems.notesEditorPlaceholder')"
-              :toolbars="notesToolbars"
-              class="problem-md-editor"
-            />
+            <a-form-item
+              class="editor-form-item"
+              :validate-status="fieldError('notes') ? 'error' : undefined"
+              :help="fieldError('notes') || undefined"
+            >
+              <MdEditor
+                v-model="form.notes"
+                language="zh-CN"
+                :max-length="20000"
+                preview-theme="github"
+                code-theme="github"
+                :placeholder="t('problems.notesEditorPlaceholder')"
+                :toolbars="notesToolbars"
+                class="problem-md-editor"
+              />
+            </a-form-item>
           </article>
 
           <article class="sample-section">
@@ -168,10 +196,20 @@
                 </div>
                 <div class="sample-card-body">
                   <div class="sample-stack">
-                    <a-form-item :label="t('problems.input')" class="sample-field">
+                    <a-form-item
+                      :label="t('problems.input')"
+                      class="sample-field"
+                      :validate-status="fieldError(`testCases[${index}].input`) ? 'error' : undefined"
+                      :help="fieldError(`testCases[${index}].input`) || undefined"
+                    >
                       <a-textarea v-model="testCase.input" class="sample-textarea" :auto-size="{ minRows: 3, maxRows: 12 }" />
                     </a-form-item>
-                    <a-form-item :label="t('problems.expectedOutput')" class="sample-field">
+                    <a-form-item
+                      :label="t('problems.expectedOutput')"
+                      class="sample-field"
+                      :validate-status="fieldError(`testCases[${index}].expectedOutput`) ? 'error' : undefined"
+                      :help="fieldError(`testCases[${index}].expectedOutput`) || undefined"
+                    >
                       <a-textarea v-model="testCase.expectedOutput" class="sample-textarea" :auto-size="{ minRows: 3, maxRows: 12 }" />
                     </a-form-item>
                   </div>
@@ -248,7 +286,7 @@ import { Message } from '@arco-design/web-vue';
 import { MdEditor } from 'md-editor-v3';
 import type { ToolbarNames } from 'md-editor-v3';
 import 'md-editor-v3/lib/style.css';
-import { api, type Difficulty, type EntityId, type ProblemPayload, type ProblemResponse, type TestCaseDto } from '@aioj/api-client';
+import { ApiError, api, type Difficulty, type EntityId, type ProblemPayload, type ProblemResponse, type TestCaseDto } from '@aioj/api-client';
 import TestcasePackageUploader from '@/components/TestcasePackageUploader.vue';
 
 const props = defineProps<{
@@ -268,6 +306,7 @@ const editingId = ref<EntityId | null>(null);
 const tagText = ref('');
 const saving = ref(false);
 const loadingDetail = ref(false);
+const fieldErrors = ref<Record<string, string>>({});
 const form = reactive<ProblemPayload>({
   title: '',
   difficulty: 'EASY',
@@ -303,6 +342,21 @@ const memoryLimitMb = computed({
 
 const tagPreview = computed(() => parseTags());
 
+const knownFieldPaths = computed(() => {
+  const paths = new Set(['title', 'statement', 'notes', 'timeLimitMillis', 'memoryLimitKb']);
+  form.testCases.forEach((_, index) => {
+    paths.add(`testCases[${index}].input`);
+    paths.add(`testCases[${index}].expectedOutput`);
+  });
+  return paths;
+});
+
+const orphanedFieldErrors = computed(() =>
+  Object.entries(fieldErrors.value)
+    .filter(([path]) => !knownFieldPaths.value.has(path))
+    .map(([path, message]) => `${path}: ${message}`)
+);
+
 const testcaseSteps = computed(() => [
   { title: t('problems.packageStepSave'), copy: t('problems.packageStepSaveCopy') },
   { title: t('problems.packageStepUpload'), copy: t('problems.packageStepUploadCopy') },
@@ -334,6 +388,10 @@ function difficultyClass(difficulty: Difficulty) {
   return `difficulty-dot difficulty-dot--${difficulty.toLowerCase()}`;
 }
 
+function fieldError(path: string) {
+  return fieldErrors.value[path];
+}
+
 function parseTags() {
   return Array.from(new Set(tagText.value.split(',').map((tag) => tag.trim()).filter(Boolean)));
 }
@@ -350,6 +408,7 @@ function resetForm() {
   form.timeLimitMillis = 1000;
   form.memoryLimitKb = 262144;
   tagText.value = '';
+  fieldErrors.value = {};
 }
 
 async function initialize() {
@@ -419,6 +478,7 @@ function validatePayload(problemPayload: ProblemPayload) {
 }
 
 async function save() {
+  fieldErrors.value = {};
   const problemPayload = payload();
   const validationError = validatePayload(problemPayload);
   if (validationError) {
@@ -427,6 +487,7 @@ async function save() {
   }
   if (problemPayload.testCases.some((testCase) => !testCase.input.trim() || !testCase.expectedOutput.trim())) {
     Message.warning(t('problems.emptySampleWarning'));
+    return;
   }
 
   saving.value = true;
@@ -438,10 +499,16 @@ async function save() {
       await api.createProblem(problemPayload);
       Message.success(t('problems.created'));
     }
+    fieldErrors.value = {};
     visibleProxy.value = false;
     emit('saved');
   } catch (caught) {
-    Message.error(caught instanceof Error ? caught.message : t('problems.saveFailed'));
+    if (caught instanceof ApiError) {
+      fieldErrors.value = caught.details ?? {};
+      Message.error(caught.userMessage);
+    } else {
+      Message.error(caught instanceof Error ? caught.message : t('problems.saveFailed'));
+    }
   } finally {
     saving.value = false;
   }

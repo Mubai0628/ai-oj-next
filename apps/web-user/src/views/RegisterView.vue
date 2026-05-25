@@ -31,6 +31,7 @@ import { reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Message } from '@arco-design/web-vue';
 import { useRouter } from 'vue-router';
+import { ApiError } from '@aioj/api-client';
 import { useAuthStore } from '@/stores/auth';
 
 const auth = useAuthStore();
@@ -60,7 +61,7 @@ async function submit() {
     Message.success(t('auth.accountCreated'));
     await router.replace('/');
   } catch (error) {
-    Message.error(error instanceof Error ? error.message : t('auth.registerFailed'));
+    Message.error(error instanceof ApiError ? error.userMessage : (error instanceof Error ? error.message : t('auth.registerFailed')));
   } finally {
     loading.value = false;
   }

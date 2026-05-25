@@ -28,6 +28,7 @@ import { reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Message } from '@arco-design/web-vue';
 import { useRoute, useRouter } from 'vue-router';
+import { ApiError } from '@aioj/api-client';
 import { useAuthStore } from '@/stores/auth';
 
 const auth = useAuthStore();
@@ -48,7 +49,7 @@ async function submit() {
     Message.success(t('auth.welcomeBack'));
     await router.replace(String(route.query.redirect || '/'));
   } catch (error) {
-    Message.error(error instanceof Error ? error.message : t('auth.loginFailed'));
+    Message.error(error instanceof ApiError ? error.userMessage : (error instanceof Error ? error.message : t('auth.loginFailed')));
   } finally {
     loading.value = false;
   }

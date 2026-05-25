@@ -54,6 +54,7 @@ import { onMounted, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 import { Message } from '@arco-design/web-vue';
+import { ApiError } from '@aioj/api-client';
 import { useAuthStore } from '@/stores/auth';
 
 const route = useRoute();
@@ -86,7 +87,7 @@ async function submit() {
     Message.success(t('auth.adminWelcome', { name: auth.displayName || t('shell.adminFallback') }));
     await router.replace(typeof route.query.redirect === 'string' ? route.query.redirect : { name: 'dashboard' });
   } catch (caught) {
-    error.value = caught instanceof Error ? caught.message : t('auth.adminSignInFailed');
+    error.value = caught instanceof ApiError ? caught.userMessage : (caught instanceof Error ? caught.message : t('auth.adminSignInFailed'));
   } finally {
     loading.value = false;
   }
