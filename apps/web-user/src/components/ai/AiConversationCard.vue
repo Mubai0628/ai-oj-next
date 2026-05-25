@@ -1,8 +1,10 @@
 <template>
   <button class="ai-conversation-card" :class="{ 'ai-conversation-card--active': active }" type="button">
-    <span class="ai-conversation-card__mode">{{ modeLabel }}</span>
-    <strong>{{ conversation.title }}</strong>
-    <p>{{ lastMessage || t('aiAssistant.emptyConversation') }}</p>
+    <div class="ai-conversation-card__summary">
+      <span class="ai-conversation-card__mode">{{ modeLabel }}</span>
+      <strong>{{ conversation.title }}</strong>
+    </div>
+    <p v-if="!compact">{{ lastMessage || t('aiAssistant.emptyConversation') }}</p>
     <footer>
       <span>{{ messageCount }}</span>
       <time>{{ timeText }}</time>
@@ -18,6 +20,7 @@ import type { AiConversation } from '@/types/ai-assistant';
 const props = defineProps<{
   conversation: AiConversation;
   active?: boolean;
+  compact?: boolean;
 }>();
 
 const { t } = useI18n();

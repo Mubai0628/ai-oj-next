@@ -18,6 +18,7 @@
       :messages="conversation?.messages || []"
       :empty-title="emptyTitle"
       :empty-description="emptyDescription"
+      :rich-markdown="richMarkdown"
     >
       <template #empty>
         <AiQuickPromptChips :mode="mode" @pick="$emit('quick', $event)" />
@@ -60,6 +61,7 @@ const props = defineProps<{
   contextLabel: string;
   emptyTitle: string;
   emptyDescription: string;
+  richMarkdown?: boolean;
 }>();
 
 defineEmits<{

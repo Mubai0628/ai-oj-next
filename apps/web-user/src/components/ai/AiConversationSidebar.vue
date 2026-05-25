@@ -29,6 +29,7 @@
         :key="conversation.id"
         :conversation="conversation"
         :active="conversation.id === selectedId"
+        compact
         @click="$emit('select', conversation.id)"
       />
     </div>

@@ -1,9 +1,9 @@
 <template>
   <Teleport to="body">
     <Transition name="ai-workspace-fade">
-      <div v-if="open" class="ai-workspace-overlay" role="presentation" @click.self="close">
+      <div v-if="open" class="ai-workspace-overlay ai-assist-overlay" role="presentation" @click.self="close">
         <Transition name="ai-workspace-slide" appear>
-          <aside class="ai-workspace-drawer" role="dialog" aria-modal="true" :aria-label="t('aiAssistant.title')">
+          <aside class="ai-workspace-drawer ai-assist-modal" role="dialog" aria-modal="true" :aria-label="t('aiAssistant.title')">
             <header class="ai-workspace-header">
               <div>
                 <span>{{ t('aiAssistant.eyebrow') }}</span>
@@ -11,7 +11,7 @@
                 <p>{{ t('aiAssistant.subtitle') }}</p>
               </div>
               <div class="ai-workspace-header__actions">
-                <button type="button" @click="viewAllHistory">{{ t('aiAssistant.viewAllHistory') }}</button>
+                <button class="no-wrap-button" type="button" @click="viewAllHistory">{{ t('aiAssistant.viewAllHistory') }}</button>
                 <button class="ai-workspace-close" type="button" :aria-label="t('common.cancel')" @click="close">×</button>
               </div>
             </header>
@@ -37,6 +37,7 @@
                 :context-label="contextLabel"
                 :empty-title="t('aiAssistant.noProblemHistoryTitle')"
                 :empty-description="t('aiAssistant.noProblemHistoryDescription')"
+                rich-markdown
                 @update:mode="setMode"
                 @update:input="input = $event"
                 @send="send"

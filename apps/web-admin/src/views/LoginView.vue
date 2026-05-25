@@ -14,22 +14,25 @@
           type="warning"
           show-icon
           class="form-alert"
-          :content="t('auth.expired')"
-        />
+        >
+          {{ t('auth.expired') }}
+        </a-alert>
         <a-alert
           v-if="error"
           type="error"
           show-icon
           class="form-alert"
-          :content="error"
-        />
+        >
+          {{ error }}
+        </a-alert>
         <a-alert
           v-if="route.query.registered"
           type="success"
           show-icon
           class="form-alert"
-          :content="t('auth.adminRegisteredAlert')"
-        />
+        >
+          {{ t('auth.adminRegisteredAlert') }}
+        </a-alert>
         <a-form :model="form" layout="vertical" @submit.prevent>
           <a-form-item :label="t('common.account')">
             <a-input v-model="form.account" :placeholder="t('auth.adminAccountPlaceholder')" autocomplete="username" />

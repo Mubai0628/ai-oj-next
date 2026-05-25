@@ -501,8 +501,8 @@ export const messages = {
       selectedConversation: '当前会话',
       emptyConversation: '暂无消息',
       emptyConversationDescription: '继续提问后，这里会展示完整的引导过程。',
-      rule: 'AI 会引导你思考，不会直接给出完整答案。',
-      ruleShort: 'AI 只提供引导提示，不直接给完整答案。',
+      rule: '建议不要直接让 AI 帮您作答。',
+      ruleShort: '建议不要直接让 AI 帮您作答。',
       placeholder: '描述你卡住的地方，AI 会给出提示、边界用例或调试建议。',
       modeLabel: '辅导模式',
       modes: {
@@ -1190,8 +1190,8 @@ export const messages = {
       selectedConversation: 'Selected chat',
       emptyConversation: 'No messages yet',
       emptyConversationDescription: 'Continue asking and the full guidance flow will appear here.',
-      rule: 'AI guides your thinking and does not directly give a full answer.',
-      ruleShort: 'AI gives guidance, not full answers.',
+      rule: 'Avoid asking AI to solve it for you directly.',
+      ruleShort: 'Avoid asking AI to solve it for you directly.',
       placeholder: 'Describe where you are stuck for hints, edge cases, or debugging advice.',
       modeLabel: 'Tutoring mode',
       modes: {
