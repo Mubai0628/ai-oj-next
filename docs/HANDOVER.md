@@ -97,6 +97,9 @@
 ## 7. 近期 commit（HEAD 倒序）
 
 ```
+8b38a13 introduce typed ApiError and form-level field error binding
+d9a06c7 standardize backend exception handling and field errors
+ce0ea95 docs fix table naming rule and log editor upgrade
 230ede5 use markdown editor for problem statement and notes
 a336f5d add problem notes field for student explanation
 f92c141 refine problem editor density and sample layout
@@ -106,10 +109,30 @@ f92c141 refine problem editor density and sample layout
 7012b57 refine admin problem editor tabs
 2990d39 fix admin register routing and session expiry
 80a3d07 docs add project guide and ignores
-2ae4bc3 refine admin workspace and problem editor
-d27d906 improve admin session registration and editor
-99c5368 fix ai markdown streaming and filters
 ```
+
+### 异常处理规范化（commits `d9a06c7` + `8b38a13`）
+
+**触发**：用户实测发现，管理端创建题目时空样例 → 后端抛 `MethodArgumentNotValidException` → 旧 handler 仅 `ex.getMessage()` 把 Spring 的 toString（codes / arguments / default message 三段元数据）原样回前端 → 前端原样吐成顶部红条墙。**前端没拦 + 后端没结构化 + 前端展示没分类**三层都缺失。
+
+**后端（`d9a06c7`）**：
+- `ErrorCode` 扩展 9 个细粒度码：`VALIDATION_FAILED 40001` / `INVALID_PAYLOAD 40002` / `MISSING_PARAMETER 40003` / `TYPE_MISMATCH 40004` / `METHOD_NOT_ALLOWED 40500` / `PAYLOAD_TOO_LARGE 41300` / `TOO_MANY_REQUESTS 42900` / `INTERNAL_ERROR 50000` / `SERVICE_UNAVAILABLE 50300`
+- `ApiResponse` 新增 `Object details` 字段（向后兼容，JSON 多一个 key），加 factory `failWithDetails(code, msg, details)`
+- `GlobalExceptionHandler` 重写：11 个 `@ExceptionHandler` 分类覆盖 `DomainException` / `MethodArgumentNotValidException` / `ConstraintViolationException` / `BindException` / `HttpMessageNotReadableException` / `MissingServletRequestParameterException` / `MethodArgumentTypeMismatchException` / `HttpRequestMethodNotSupportedException` / `HttpMediaTypeNotSupportedException` / `MaxUploadSizeExceededException` / catch-all
+- 校验类异常自动把 `BindingResult.getFieldErrors()` 折叠成 `Map<String, String>` 进 `details`（字段路径 → defaultMessage）
+- 兜底 handler 走 `log.error("Unhandled exception traceId={}", ...)` + 返回 `INTERNAL_ERROR` 通用消息，**永不**回传 `ex.getMessage()`
+
+**前端（`8b38a13`）**：
+- `@aioj/api-client` 新增 `ApiError extends Error` 类（`code` / `details` / `traceId` / `serverMessage` / `userMessage` getter / `fieldError(path)`）；`request()` 抛 `ApiError` 而非裸 `Error`
+- 新增 `setApiErrorMessageResolver(fn)` 注入点；两端 `main.ts` 在 i18n 装好后注册解析器，让 `ApiError.userMessage` 自动走 i18n
+- 新增 i18n `errors.*` 双语映射（14 个码 + `unknown` fallback）
+- `ProblemEditorDrawer.vue` 接入字段级错误：`fieldError(path)` helper + `<a-form-item :validate-status :help>` 绑 title / statement / notes / timeLimitMillis / memoryLimitKb / `testCases[i].input` / `testCases[i].expectedOutput`；外加 `orphanedFieldErrors` 兜住未绑到字段的错误
+- 空样例改为**硬阻断**（原来是 warning 后继续提交）
+- 4 个 Login/Register 视图（admin + user）切到 `ApiError.userMessage` 显示
+
+**兼容性**：`ApiResponse` JSON 加字段不破坏旧客户端；`ApiError extends Error` 所以现存所有 `catch (e) { e.message }` 仍能工作（serverMessage 作 fallback）。
+
+### 题目编辑器升级（commits `f92c141` + `a336f5d` + `230ede5`）
 
 ### 题目编辑器升级（commits `f92c141` + `a336f5d` + `230ede5`）
 

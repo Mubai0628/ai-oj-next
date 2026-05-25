@@ -89,10 +89,13 @@ graphify-out/             知识图谱（.gitignore，本地用 graphify update 
 
 ## 5. Conventions（红线规则）
 
-### 5.1 API 响应
-- 后端所有 controller 返回 `ApiResponse<T>`（`code: int, message: string, data: T, traceId, timestamp`）。
-- `code = 0` 才是成功。其他 code 见 `com.aioj.next.common.error.ErrorCode`。
-- 错误抛 `DomainException(ErrorCode, message)`，由 `GlobalExceptionHandler` 统一转换。
+### 5.1 API 响应与异常处理
+- 后端所有 controller 返回 `ApiResponse<T>`（`code: int, message: string, data: T, details?: object, traceId, timestamp`）。`code = 0` 才是成功；其他 code 见 `com.aioj.next.common.error.ErrorCode`。
+- 业务错误**只**抛 `DomainException(ErrorCode, message)`——**禁止**裸 `throw new RuntimeException`、**禁止** controller 内 try/catch 转换、**禁止**直接 `return ResponseEntity.status(...)`。
+- 校验类异常（`MethodArgumentNotValidException` / `ConstraintViolationException` / `BindException` 等）由 `common-lib/GlobalExceptionHandler` 自动捕获，**字段错误**结构化进 `ApiResponse.details: Map<String, String>`（字段路径 → 消息）。controller / service 不要重复处理。
+- 兜底 `@ExceptionHandler(Exception.class)` **绝不**回传 `ex.getMessage()`——只返回 `INTERNAL_ERROR` 通用消息 + 把堆栈带 `traceId` 走 `log.error` 落到服务端日志。
+- 前端 `@aioj/api-client.request()` 抛 `ApiError`（含 `code` / `details` / `traceId` / `userMessage`）。视图层用 `instanceof ApiError` 区分，字段错误绑到 `<a-form-item :validate-status :help>`，通用错误用 `ApiError.userMessage`（自动走 i18n `errors.<code>`）。
+- 新增错误码：先在 `ErrorCode.java` 加常量，再在 `packages/i18n/src/messages.ts` 的 `errors.*` 双语同步加映射。
 
 ### 5.2 路由前缀
 - 所有公开 API 必须在 `/api/v1/...` 下，**先在 gateway 的路由配置里加前缀**，再在业务服务实现。
