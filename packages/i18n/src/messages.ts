@@ -672,7 +672,13 @@ export const messages = {
       sortOldest: '最早优先',
       quotaToday: '今日 {used}/{total}',
       quotaMonth: '本月 {used}/{total}',
-      quotaUnavailable: '配额读取失败'
+      quotaUnavailable: '配额读取失败',
+      stageThinking: '正在分析题目意图…',
+      stageDrafting: 'AI 正在编写题面…',
+      stageTestcases: '正在构造测试数据…',
+      stagePersisting: '正在校验并保存…',
+      elapsedSeconds: '已等待 {seconds} 秒',
+      generateCanceled: '已取消生成请求（后端可能仍会保存草稿，刷新即可看到）。'
     },
     blocked: {
       tag: '访问受限',
@@ -1394,7 +1400,13 @@ export const messages = {
       sortOldest: 'Oldest first',
       quotaToday: 'Today {used}/{total}',
       quotaMonth: 'This month {used}/{total}',
-      quotaUnavailable: 'Quota unavailable'
+      quotaUnavailable: 'Quota unavailable',
+      stageThinking: 'Analysing the topic…',
+      stageDrafting: 'Drafting the problem statement…',
+      stageTestcases: 'Building testcases…',
+      stagePersisting: 'Validating and saving…',
+      elapsedSeconds: 'Elapsed {seconds}s',
+      generateCanceled: 'Generation canceled (the backend may still save the draft; refresh to check).'
     },
     blocked: {
       tag: 'Access blocked',

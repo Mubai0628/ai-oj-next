@@ -464,8 +464,15 @@ export const api = {
     request<AiChatMessageResponse[]>(`/api/v1/ai/conversations/${encodeURIComponent(conversationId)}/messages`),
   deleteAiConversation: (conversationId: string) =>
     request<void>(`/api/v1/ai/conversations/${encodeURIComponent(conversationId)}`, { method: 'DELETE' }),
-  generateDraft: (payload: { topic: string; difficulty?: string; teachingGoal?: string }) =>
-    request<ProblemDraftResponse>('/api/v1/ai/problem-drafts/generate', { method: 'POST', body: JSON.stringify(payload) }),
+  generateDraft: (
+    payload: { topic: string; difficulty?: string; teachingGoal?: string },
+    opts?: { signal?: AbortSignal }
+  ) =>
+    request<ProblemDraftResponse>('/api/v1/ai/problem-drafts/generate', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+      signal: opts?.signal
+    }),
   problemDrafts: (params: {
     page?: number;
     pageSize?: number;

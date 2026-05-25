@@ -590,6 +590,28 @@ textarea {
   color: #64748b;
 }
 
+.draft-generate-progress {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px;
+  border: 1px dashed #bfdbfe;
+  border-radius: 12px;
+  background: #f8fbff;
+}
+
+.draft-generate-progress-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.draft-generate-progress-text small {
+  color: var(--admin-muted);
+  font-size: 12px;
+}
+
 .draft-tip {
   display: flex;
   gap: 10px;

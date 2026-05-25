@@ -51,9 +51,17 @@
           <template #extra>{{ t('problems.charCount', { count: form.teachingGoal.length, max: 200 }) }}</template>
         </a-form-item>
 
-        <a-button type="primary" long class="draft-generate-button" :loading="generating" @click="generateDraft">
-          {{ generating ? t('drafts.generating') : t('drafts.generate') }}
+        <a-button v-if="!generating" type="primary" long class="draft-generate-button" @click="generateDraft">
+          {{ t('drafts.generate') }}
         </a-button>
+        <div v-else class="draft-generate-progress" role="status" aria-live="polite">
+          <a-spin />
+          <div class="draft-generate-progress-text">
+            <strong>{{ generateStage }}</strong>
+            <small>{{ t('drafts.elapsedSeconds', { seconds: Math.ceil(generateElapsedMs / 1000) }) }}</small>
+          </div>
+          <a-button size="small" status="danger" @click="cancelGenerate">{{ t('common.cancel') }}</a-button>
+        </div>
       </a-form>
 
       <div class="draft-tip">
@@ -209,6 +217,9 @@ const generating = ref(false);
 const rejecting = ref(false);
 const quota = ref<AiUsageResponse | null>(null);
 const quotaError = ref(false);
+const generateController = ref<AbortController | null>(null);
+const generateStage = ref('');
+const generateElapsedMs = ref(0);
 const rejectModalVisible = ref(false);
 const rejectTarget = ref<ProblemDraftResponse | null>(null);
 const detailVisible = ref(false);
@@ -221,6 +232,12 @@ const generateError = ref('');
 const fieldErrors = ref<Record<string, string>>({});
 
 const flowSteps = computed(() => [t('drafts.flowGenerate'), t('drafts.flowReview'), t('drafts.flowApprove')]);
+const generateStageList = computed(() => [
+  t('drafts.stageThinking'),
+  t('drafts.stageDrafting'),
+  t('drafts.stageTestcases'),
+  t('drafts.stagePersisting')
+]);
 
 function difficultyIcon(difficulty: Difficulty) {
   return ({ EASY: '●', MEDIUM: '◆', HARD: '▲', CHALLENGE: '✦' } as Record<Difficulty, string>)[difficulty];
@@ -316,14 +333,27 @@ async function handleDraftUpdated(draft: ProblemDraftResponse) {
 }
 
 async function generateDraft() {
+  if (generating.value) return;
   generating.value = true;
   generateError.value = '';
   fieldErrors.value = {};
+  const controller = new AbortController();
+  generateController.value = controller;
+  generateStage.value = generateStageList.value[0];
+  generateElapsedMs.value = 0;
+  const start = Date.now();
+  const tickHandle = window.setInterval(() => {
+    generateElapsedMs.value = Date.now() - start;
+    const index = Math.min(Math.floor(generateElapsedMs.value / 4000), generateStageList.value.length - 1);
+    generateStage.value = generateStageList.value[index];
+  }, 200);
   try {
     const draft = await api.generateDraft({
       topic: form.topic.trim(),
       difficulty: form.difficulty,
       teachingGoal: form.teachingGoal.trim() || undefined
+    }, {
+      signal: controller.signal
     });
     Message.success(t('drafts.generated'));
     if (activeStatus.value === 'PENDING_REVIEW') {
@@ -336,15 +366,24 @@ async function generateDraft() {
     await loadQuota();
     fieldErrors.value = {};
   } catch (caught) {
-    if (caught instanceof ApiError) {
+    if ((caught as DOMException)?.name === 'AbortError') {
+      generateError.value = t('drafts.generateCanceled');
+    } else if (caught instanceof ApiError) {
       fieldErrors.value = caught.details ?? {};
       generateError.value = caught.userMessage;
     } else {
       generateError.value = caught instanceof Error ? caught.message : t('drafts.generateFailed');
     }
   } finally {
+    window.clearInterval(tickHandle);
     generating.value = false;
+    generateController.value = null;
+    generateStage.value = '';
   }
+}
+
+function cancelGenerate() {
+  generateController.value?.abort();
 }
 
 async function approveDraft(id: EntityId) {
