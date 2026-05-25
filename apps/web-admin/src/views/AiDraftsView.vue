@@ -13,20 +13,32 @@
 
       <a-alert v-if="generateError" type="error" show-icon class="form-alert" :content="generateError" />
       <a-form :model="form" layout="vertical" class="draft-generate-form">
-        <a-form-item :label="t('drafts.topic')">
+        <a-form-item
+          :label="t('drafts.topic')"
+          :validate-status="fieldError('topic') ? 'error' : undefined"
+          :help="fieldError('topic') || undefined"
+        >
           <a-input v-model="form.topic" :max-length="100" :placeholder="t('drafts.topicPlaceholder')" />
           <template #extra>{{ t('problems.charCount', { count: form.topic.length, max: 100 }) }}</template>
         </a-form-item>
 
         <div class="form-grid two">
-          <a-form-item :label="t('common.difficulty')">
+          <a-form-item
+            :label="t('common.difficulty')"
+            :validate-status="fieldError('difficulty') ? 'error' : undefined"
+            :help="fieldError('difficulty') || undefined"
+          >
             <a-select v-model="form.difficulty">
               <a-option v-for="difficulty in difficulties" :key="difficulty" :value="difficulty">
                 {{ difficultyIcon(difficulty) }} {{ t(`difficulty.${difficulty}`) }}
               </a-option>
             </a-select>
           </a-form-item>
-          <a-form-item :label="t('drafts.count')">
+          <a-form-item
+            :label="t('drafts.count')"
+            :validate-status="fieldError('count') ? 'error' : undefined"
+            :help="fieldError('count') || undefined"
+          >
             <div class="draft-count-stepper">
               <button type="button" :disabled="form.count <= 1" @click="form.count -= 1">−</button>
               <a-input-number v-model="form.count" :min="1" :max="5" hide-button />
@@ -35,7 +47,11 @@
           </a-form-item>
         </div>
 
-        <a-form-item :label="t('drafts.teachingGoal')">
+        <a-form-item
+          :label="t('drafts.teachingGoal')"
+          :validate-status="fieldError('teachingGoal') ? 'error' : undefined"
+          :help="fieldError('teachingGoal') || undefined"
+        >
           <a-textarea v-model="form.teachingGoal" :max-length="200" :placeholder="t('drafts.teachingGoalPlaceholder')" :auto-size="{ minRows: 5, maxRows: 8 }" />
           <template #extra>{{ t('problems.charCount', { count: form.teachingGoal.length, max: 200 }) }}</template>
         </a-form-item>
@@ -126,7 +142,7 @@
 import { computed, onMounted, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Message } from '@arco-design/web-vue';
-import { api, type Difficulty, type EntityId, type ProblemDraftResponse } from '@aioj/api-client';
+import { ApiError, api, type Difficulty, type EntityId, type ProblemDraftResponse } from '@aioj/api-client';
 
 type DraftStatus = 'PENDING_REVIEW' | 'APPROVED';
 
@@ -146,6 +162,7 @@ const loading = ref(false);
 const generating = ref(false);
 const listError = ref('');
 const generateError = ref('');
+const fieldErrors = ref<Record<string, string>>({});
 
 const flowSteps = computed(() => [t('drafts.flowGenerate'), t('drafts.flowReview'), t('drafts.flowApprove')]);
 
@@ -161,6 +178,10 @@ function validationStatusLabel(status: string) {
   const key = `validationStatus.${status}`;
   const translated = t(key);
   return translated === key ? status : translated;
+}
+
+function fieldError(path: string) {
+  return fieldErrors.value[path];
 }
 
 async function loadDrafts() {
@@ -181,7 +202,7 @@ async function loadDrafts() {
       pendingCount.value = otherCount.total;
     }
   } catch (caught) {
-    listError.value = caught instanceof Error ? caught.message : t('drafts.loadFailed');
+    listError.value = caught instanceof ApiError ? caught.userMessage : (caught instanceof Error ? caught.message : t('drafts.loadFailed'));
   } finally {
     loading.value = false;
   }
@@ -200,6 +221,7 @@ function focusGenerate() {
 async function generateDraft() {
   generating.value = true;
   generateError.value = '';
+  fieldErrors.value = {};
   try {
     const draft = await api.generateDraft({
       topic: form.topic.trim(),
@@ -215,8 +237,14 @@ async function generateDraft() {
       activeStatus.value = 'PENDING_REVIEW';
       await loadDrafts();
     }
+    fieldErrors.value = {};
   } catch (caught) {
-    generateError.value = caught instanceof Error ? caught.message : t('drafts.generateFailed');
+    if (caught instanceof ApiError) {
+      fieldErrors.value = caught.details ?? {};
+      generateError.value = caught.userMessage;
+    } else {
+      generateError.value = caught instanceof Error ? caught.message : t('drafts.generateFailed');
+    }
   } finally {
     generating.value = false;
   }
@@ -228,7 +256,7 @@ async function approveDraft(id: EntityId) {
     Message.success(t('drafts.approvedMessage'));
     await loadDrafts();
   } catch (caught) {
-    Message.error(caught instanceof Error ? caught.message : t('drafts.approveFailed'));
+    Message.error(caught instanceof ApiError ? caught.userMessage : (caught instanceof Error ? caught.message : t('drafts.approveFailed')));
   }
 }
 
@@ -238,7 +266,7 @@ async function importDraft(draft: ProblemDraftResponse) {
     Message.success(imported.importedProblemId ? t('drafts.importedAs', { id: imported.importedProblemId }) : t('drafts.approvedMessage'));
     await loadDrafts();
   } catch (caught) {
-    Message.error(caught instanceof Error ? caught.message : t('drafts.importFailed'));
+    Message.error(caught instanceof ApiError ? caught.userMessage : (caught instanceof Error ? caught.message : t('drafts.importFailed')));
   }
 }
 

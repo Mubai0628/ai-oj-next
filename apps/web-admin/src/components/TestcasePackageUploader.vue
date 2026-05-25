@@ -97,6 +97,7 @@ import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Message } from '@arco-design/web-vue';
 import {
+  ApiError,
   api,
   type EntityId,
   type TestcasePackageResponse,
@@ -164,6 +165,10 @@ function packageStatusColor(status: TestcasePackageStatus) {
   if (status === 'FAILED') return 'red';
   if (status === 'PROCESSING') return 'orange';
   return 'arcoblue';
+}
+
+function userErrorMessage(caught: unknown, fallback: string) {
+  return caught instanceof ApiError ? caught.userMessage : caught instanceof Error ? caught.message : fallback;
 }
 
 function clearSelectedFile() {
@@ -279,7 +284,7 @@ async function uploadSelected() {
   } catch (caught) {
     phase.value = 'failed';
     canRetry.value = true;
-    error.value = caught instanceof Error ? caught.message : t('testcase.initFailed');
+    error.value = userErrorMessage(caught, t('testcase.initFailed'));
   } finally {
     busy.value = false;
   }
@@ -288,21 +293,26 @@ async function uploadSelected() {
 async function pollStatus(uploadId: string) {
   if (!props.problemId) return;
   phase.value = 'polling';
-  for (let attempt = 0; attempt < 30; attempt += 1) {
-    const status = await api.testcaseUploadStatus(props.problemId, uploadId);
-    uploadStatus.value = status;
-    if (status.status === 'READY') {
-      phase.value = 'ready';
-      Message.success(t('testcase.uploadReady'));
-      clearSelectedFile();
-      return;
+  try {
+    for (let attempt = 0; attempt < 30; attempt += 1) {
+      const status = await api.testcaseUploadStatus(props.problemId, uploadId);
+      uploadStatus.value = status;
+      if (status.status === 'READY') {
+        phase.value = 'ready';
+        Message.success(t('testcase.uploadReady'));
+        clearSelectedFile();
+        return;
+      }
+      if (status.status === 'FAILED') {
+        throw new Error(status.errorMessage || t('testcase.uploadFailed'));
+      }
+      await new Promise((resolve) => window.setTimeout(resolve, 2000));
     }
-    if (status.status === 'FAILED') {
-      throw new Error(status.errorMessage || t('testcase.uploadFailed'));
-    }
-    await new Promise((resolve) => window.setTimeout(resolve, 2000));
+    throw new Error(t('testcase.pollTimeout'));
+  } catch (caught) {
+    error.value = userErrorMessage(caught, t('testcase.statusFailed'));
+    throw caught;
   }
-  throw new Error(t('testcase.pollTimeout'));
 }
 
 async function loadPackages() {
@@ -314,7 +324,7 @@ async function loadPackages() {
   try {
     packages.value = await api.testcasePackages(props.problemId);
   } catch (caught) {
-    error.value = caught instanceof Error ? caught.message : t('testcase.listFailed');
+    error.value = userErrorMessage(caught, t('testcase.listFailed'));
   } finally {
     packagesLoading.value = false;
   }
@@ -330,7 +340,7 @@ async function activatePackage(packageId: EntityId) {
     Message.success(t('testcase.activated'));
     await loadPackages();
   } catch (caught) {
-    error.value = caught instanceof Error ? caught.message : t('testcase.activateFailed');
+    error.value = userErrorMessage(caught, t('testcase.activateFailed'));
   } finally {
     activatingId.value = null;
   }

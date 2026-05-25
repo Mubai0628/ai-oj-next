@@ -66,19 +66,41 @@
           class="form-alert"
           :content="roleWarning"
         />
-        <a-form-item v-if="!editingUser" :label="t('common.account')">
+        <a-form-item
+          v-if="!editingUser"
+          :label="t('common.account')"
+          :validate-status="fieldError('account') ? 'error' : undefined"
+          :help="fieldError('account') || undefined"
+        >
           <a-input v-model="form.account" />
         </a-form-item>
-        <a-form-item v-if="!editingUser" :label="t('common.password')">
+        <a-form-item
+          v-if="!editingUser"
+          :label="t('common.password')"
+          :validate-status="fieldError('password') ? 'error' : undefined"
+          :help="fieldError('password') || undefined"
+        >
           <a-input-password v-model="form.password" />
         </a-form-item>
-        <a-form-item :label="t('common.displayName')">
+        <a-form-item
+          :label="t('common.displayName')"
+          :validate-status="fieldError('displayName') ? 'error' : undefined"
+          :help="fieldError('displayName') || undefined"
+        >
           <a-input v-model="form.displayName" />
         </a-form-item>
-        <a-form-item :label="t('common.email')">
+        <a-form-item
+          :label="t('common.email')"
+          :validate-status="fieldError('email') ? 'error' : undefined"
+          :help="fieldError('email') || undefined"
+        >
           <a-input v-model="form.email" />
         </a-form-item>
-        <a-form-item :label="t('adminUsers.baseIdentity')">
+        <a-form-item
+          :label="t('adminUsers.baseIdentity')"
+          :validate-status="fieldError('roles') ? 'error' : undefined"
+          :help="fieldError('roles') || undefined"
+        >
           <a-radio-group v-model="form.baseRole" type="button">
             <a-radio value="STUDENT">{{ t('auth.studentRole') }}</a-radio>
             <a-radio value="TEACHER">{{ t('auth.teacherRole') }}</a-radio>
@@ -102,7 +124,7 @@
 import { onMounted, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Message } from '@arco-design/web-vue';
-import { api, type AdminUserResponse, type Role, type RoleResponse } from '@aioj/api-client';
+import { ApiError, api, type AdminUserResponse, type Role, type RoleResponse } from '@aioj/api-client';
 
 const { t } = useI18n();
 const loading = ref(false);
@@ -113,6 +135,7 @@ const roles = ref<RoleResponse[]>([]);
 const modalVisible = ref(false);
 const editingUser = ref<AdminUserResponse | null>(null);
 const roleWarning = ref('');
+const fieldErrors = ref<Record<string, string>>({});
 type BaseRole = Extract<Role, 'STUDENT' | 'TEACHER'>;
 const filters = reactive<{ keyword: string; role: Role | ''; enabled: boolean | '' }>({
   keyword: '',
@@ -130,7 +153,11 @@ const form = reactive({
 });
 
 async function loadRoles() {
-  roles.value = await api.roles();
+  try {
+    roles.value = await api.roles();
+  } catch (caught) {
+    error.value = caught instanceof ApiError ? caught.userMessage : (caught instanceof Error ? caught.message : t('adminUsers.loadRolesFailed'));
+  }
 }
 
 async function loadUsers() {
@@ -139,10 +166,14 @@ async function loadUsers() {
   try {
     users.value = (await api.users({ ...filters, page: 1, pageSize: 50 })).records;
   } catch (caught) {
-    error.value = caught instanceof Error ? caught.message : t('adminUsers.loadFailed');
+    error.value = caught instanceof ApiError ? caught.userMessage : (caught instanceof Error ? caught.message : t('adminUsers.loadFailed'));
   } finally {
     loading.value = false;
   }
+}
+
+function fieldError(path: string) {
+  return fieldErrors.value[path];
 }
 
 function roleLabel(role: Role, fallback?: string) {
@@ -158,6 +189,7 @@ function resetForm() {
   form.adminAccess = false;
   form.enabled = true;
   roleWarning.value = '';
+  fieldErrors.value = {};
 }
 
 function openCreate() {
@@ -198,6 +230,7 @@ function validateRoles(rolesToSave: Role[]) {
 }
 
 async function saveUser() {
+  fieldErrors.value = {};
   const rolesToSave = assembledRoles();
   const roleError = validateRoles(rolesToSave);
   if (roleError) {
@@ -225,10 +258,16 @@ async function saveUser() {
       });
       Message.success(t('adminUsers.userCreated'));
     }
+    fieldErrors.value = {};
     modalVisible.value = false;
     await loadUsers();
   } catch (caught) {
-    Message.error(caught instanceof Error ? caught.message : t('adminUsers.saveFailed'));
+    if (caught instanceof ApiError) {
+      fieldErrors.value = caught.details ?? {};
+      Message.error(caught.userMessage);
+    } else {
+      Message.error(caught instanceof Error ? caught.message : t('adminUsers.saveFailed'));
+    }
   } finally {
     saving.value = false;
   }
@@ -245,7 +284,7 @@ async function disableUser(user: AdminUserResponse) {
     Message.success(t('adminUsers.userDisabled'));
     await loadUsers();
   } catch (caught) {
-    Message.error(caught instanceof Error ? caught.message : t('adminUsers.disableFailed'));
+    Message.error(caught instanceof ApiError ? caught.userMessage : (caught instanceof Error ? caught.message : t('adminUsers.disableFailed')));
   }
 }
 
@@ -258,11 +297,7 @@ function normalizeExistingRoles(userRoles: Role[]) {
 }
 
 onMounted(async () => {
-  try {
-    await loadRoles();
-  } catch (caught) {
-    error.value = caught instanceof Error ? caught.message : t('adminUsers.loadRolesFailed');
-  }
+  await loadRoles();
   await loadUsers();
 });
 </script>

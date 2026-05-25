@@ -85,7 +85,7 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Message } from '@arco-design/web-vue';
-import { api } from '@aioj/api-client';
+import { ApiError, api } from '@aioj/api-client';
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue';
 import EmptyState from '@/components/common/EmptyState.vue';
 import AiAssistantWorkspaceDrawer from '@/components/ai/AiAssistantWorkspaceDrawer.vue';
@@ -255,7 +255,7 @@ async function loadProblem() {
     aiSelectedConversationId.value = undefined;
     aiError.value = '';
   } catch (err) {
-    error.value = err instanceof Error ? err.message : t('problems.loadFailed');
+    error.value = err instanceof ApiError ? err.userMessage : (err instanceof Error ? err.message : t('problems.loadFailed'));
   } finally {
     loading.value = false;
   }
@@ -284,7 +284,7 @@ async function submitCode() {
     });
   } catch (err) {
     submitState.type = 'error';
-    submitState.message = err instanceof Error ? err.message : t('problems.submitFailed');
+    submitState.message = err instanceof ApiError ? err.userMessage : (err instanceof Error ? err.message : t('problems.submitFailed'));
   } finally {
     submitting.value = false;
   }
