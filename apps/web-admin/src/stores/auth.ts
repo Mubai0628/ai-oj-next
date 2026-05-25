@@ -5,6 +5,7 @@ interface AuthState {
   profile: UserProfileResponse | null;
   profileFetchedAt: number | null;
   loading: boolean;
+  authTick: number;
 }
 
 function profileFromToken(tokens: TokenResponse): UserProfileResponse {
@@ -19,8 +20,9 @@ function profileFromToken(tokens: TokenResponse): UserProfileResponse {
 export const useAuthStore = defineStore('admin-auth', {
   state: (): AuthState => ({
     profile: authStore.user ? profileFromToken(authStore.user) : null,
-    profileFetchedAt: authStore.user ? Date.now() : null,
-    loading: false
+    profileFetchedAt: null,
+    loading: false,
+    authTick: 0
   }),
   getters: {
     isAuthenticated: () => Boolean(authStore.accessToken),
@@ -33,6 +35,7 @@ export const useAuthStore = defineStore('admin-auth', {
       authStore.save(tokens);
       this.profile = profileFromToken(tokens);
       this.profileFetchedAt = Date.now();
+      this.authTick = this.authTick + 1;
       return tokens;
     },
     async loadProfile(force = false) {
@@ -40,7 +43,7 @@ export const useAuthStore = defineStore('admin-auth', {
         this.clearLocal();
         throw new Error('Login required');
       }
-      const STALE_MS = 60_000;
+      const STALE_MS = 30_000;
       const fresh = this.profile && this.profileFetchedAt && (Date.now() - this.profileFetchedAt) < STALE_MS;
       if (fresh && !force) return this.profile;
       this.loading = true;
@@ -71,6 +74,7 @@ export const useAuthStore = defineStore('admin-auth', {
       authStore.clear();
       this.profile = null;
       this.profileFetchedAt = null;
+      this.authTick = this.authTick + 1;
     }
   }
 });

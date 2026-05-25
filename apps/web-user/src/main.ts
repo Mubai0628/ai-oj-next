@@ -26,6 +26,7 @@ import { i18n, installI18n } from '@aioj/i18n';
 import { installErrorReporter, setApiErrorMessageResolver } from '@aioj/api-client';
 import App from './App.vue';
 import router from './router';
+import { useAuthStore } from '@/stores/auth';
 import './styles/tokens.css';
 import './styles/global.css';
 import './styles/layout.css';
@@ -68,4 +69,26 @@ setApiErrorMessageResolver((code, fallback) => {
 });
 installErrorReporter({ appName: 'web-user' });
 app.use(router);
+
+function handleAuthExpired() {
+  const auth = useAuthStore();
+  const currentRoute = router.currentRoute.value;
+  auth.clearLocal();
+  if (currentRoute.name === 'login' || currentRoute.name === 'register') return;
+  const redirect = typeof currentRoute.fullPath === 'string' && currentRoute.fullPath
+    ? currentRoute.fullPath
+    : '/';
+  router.replace({ name: 'login', query: { expired: '1', redirect } })
+    .catch(() => {
+      // AppShell overlay still covers protected content if navigation is aborted.
+    });
+}
+
+window.addEventListener('aioj:auth-expired', handleAuthExpired);
+if (import.meta.hot) {
+  import.meta.hot.dispose(() => {
+    window.removeEventListener('aioj:auth-expired', handleAuthExpired);
+  });
+}
+
 app.mount('#app');

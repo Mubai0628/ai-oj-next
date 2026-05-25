@@ -3,13 +3,17 @@ import { api, authStore, type UserProfileResponse } from '@aioj/api-client';
 
 interface AuthState {
   profile: UserProfileResponse | null;
+  profileFetchedAt: number | null;
   loading: boolean;
+  authTick: number;
 }
 
 export const useAuthStore = defineStore('auth', {
   state: (): AuthState => ({
     profile: null,
-    loading: false
+    profileFetchedAt: null,
+    loading: false,
+    authTick: 0
   }),
   getters: {
     isAuthenticated: () => Boolean(authStore.accessToken)
@@ -24,6 +28,8 @@ export const useAuthStore = defineStore('auth', {
         displayName: tokens.displayName,
         roles: tokens.roles
       };
+      this.profileFetchedAt = Date.now();
+      this.authTick = this.authTick + 1;
       return tokens;
     },
     async register(payload: { account: string; password: string; displayName: string; email?: string }) {
@@ -36,6 +42,8 @@ export const useAuthStore = defineStore('auth', {
         email: payload.email,
         roles: tokens.roles
       };
+      this.profileFetchedAt = Date.now();
+      this.authTick = this.authTick + 1;
       return tokens;
     },
     async loadProfile(force = false) {
@@ -43,10 +51,13 @@ export const useAuthStore = defineStore('auth', {
         this.clearLocal();
         throw new Error('Login required');
       }
-      if (this.profile && !force) return this.profile;
+      const STALE_MS = 30_000;
+      const fresh = this.profile && this.profileFetchedAt && (Date.now() - this.profileFetchedAt) < STALE_MS;
+      if (fresh && !force) return this.profile;
       this.loading = true;
       try {
         this.profile = await api.me();
+        this.profileFetchedAt = Date.now();
         return this.profile;
       } catch (error) {
         this.clearLocal();
@@ -72,6 +83,8 @@ export const useAuthStore = defineStore('auth', {
     clearLocal() {
       authStore.clear();
       this.profile = null;
+      this.profileFetchedAt = null;
+      this.authTick = this.authTick + 1;
     }
   }
 });

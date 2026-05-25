@@ -42,24 +42,6 @@ const router = createRouter({
   routes
 });
 
-function handleAuthExpired() {
-  const auth = useAuthStore();
-  const currentRoute = router.currentRoute.value;
-
-  auth.clearLocal();
-  if (currentRoute.name === 'login' || currentRoute.name === 'register') return;
-
-  const redirect = currentRoute.fullPath || '/dashboard';
-  void router.replace({ name: 'login', query: { expired: '1', redirect } });
-}
-
-window.addEventListener('aioj:auth-expired', handleAuthExpired);
-if (import.meta.hot) {
-  import.meta.hot.dispose(() => {
-    window.removeEventListener('aioj:auth-expired', handleAuthExpired);
-  });
-}
-
 router.beforeEach(async (to) => {
   const auth = useAuthStore();
 
