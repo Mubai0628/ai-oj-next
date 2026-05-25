@@ -93,7 +93,9 @@ public class ProblemDraftStore {
                     nonBlank(raw.model(), aiProvider.model()),
                     Math.max(0, raw.promptTokens()),
                     Math.max(0, raw.completionTokens()),
-                    raw.createdAt() == null ? Instant.now() : raw.createdAt()
+                    raw.createdAt() == null ? Instant.now() : raw.createdAt(),
+                    null,
+                    null
             );
             persist(userId, response);
             aiQuotaService.record(
@@ -225,6 +227,8 @@ public class ProblemDraftStore {
         entity.setModel(response.model());
         entity.setStatus(STATUS_PENDING_REVIEW);
         entity.setImportedProblemId(response.importedProblemId());
+        entity.setRefinedFromDraftId(response.refinedFromDraftId());
+        entity.setRefineNote(response.refineNote());
         entity.setCreatedAt(LocalDateTime.now());
         problemDraftMapper.insert(entity);
     }
@@ -246,7 +250,9 @@ public class ProblemDraftStore {
                 entity.getModel(),
                 payload.promptTokens(),
                 payload.completionTokens(),
-                entity.getCreatedAt().atZone(ZONE).toInstant()
+                entity.getCreatedAt().atZone(ZONE).toInstant(),
+                entity.getRefinedFromDraftId(),
+                entity.getRefineNote()
         );
     }
 
@@ -349,7 +355,9 @@ public class ProblemDraftStore {
                 aiProvider.model(),
                 0,
                 0,
-                Instant.now()
+                Instant.now(),
+                null,
+                null
         );
     }
 

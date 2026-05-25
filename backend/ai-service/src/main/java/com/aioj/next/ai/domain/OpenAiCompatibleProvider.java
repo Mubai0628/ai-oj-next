@@ -78,7 +78,9 @@ public class OpenAiCompatibleProvider implements AiProvider {
                     model(),
                     result.promptTokens(),
                     result.completionTokens(),
-                    Instant.now()
+                    Instant.now(),
+                    null,
+                    null
             );
         } catch (Exception ex) {
             return invalidProblemDraft(id, request, "Provider returned invalid problem draft JSON: " + ex.getMessage(), result);
@@ -165,7 +167,9 @@ public class OpenAiCompatibleProvider implements AiProvider {
                 model(),
                 estimateTokens(request.topic() + " " + request.teachingGoal()),
                 estimateTokens(statement),
-                Instant.now()
+                Instant.now(),
+                null,
+                null
         );
     }
 
@@ -185,7 +189,9 @@ public class OpenAiCompatibleProvider implements AiProvider {
                 model(),
                 result.promptTokens(),
                 result.completionTokens(),
-                Instant.now()
+                Instant.now(),
+                null,
+                null
         );
     }
 

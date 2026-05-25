@@ -227,6 +227,8 @@ export interface ProblemDraftResponse {
   promptTokens: number;
   completionTokens: number;
   createdAt: string;
+  refinedFromDraftId?: EntityId | null;
+  refineNote?: string | null;
 }
 
 export interface ProblemListParams {

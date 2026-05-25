@@ -22,6 +22,8 @@ public class ProblemDraftEntity {
     private LocalDateTime reviewedAt;
     private Long reviewedBy;
     private Long importedProblemId;
+    private Long refinedFromDraftId;
+    private String refineNote;
 
     public Long getId() {
         return id;
@@ -125,5 +127,21 @@ public class ProblemDraftEntity {
 
     public void setImportedProblemId(Long importedProblemId) {
         this.importedProblemId = importedProblemId;
+    }
+
+    public Long getRefinedFromDraftId() {
+        return refinedFromDraftId;
+    }
+
+    public void setRefinedFromDraftId(Long refinedFromDraftId) {
+        this.refinedFromDraftId = refinedFromDraftId;
+    }
+
+    public String getRefineNote() {
+        return refineNote;
+    }
+
+    public void setRefineNote(String refineNote) {
+        this.refineNote = refineNote;
     }
 }

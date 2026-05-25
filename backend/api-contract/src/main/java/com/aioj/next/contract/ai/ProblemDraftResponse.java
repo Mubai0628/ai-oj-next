@@ -20,6 +20,8 @@ public record ProblemDraftResponse(
         String model,
         long promptTokens,
         long completionTokens,
-        Instant createdAt
+        Instant createdAt,
+        Long refinedFromDraftId,
+        String refineNote
 ) {
 }
