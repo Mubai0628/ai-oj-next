@@ -1,5 +1,7 @@
 package com.aioj.next.contract.submission;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+
 import java.time.Instant;
 
 public record SubmissionResponse(
@@ -7,6 +9,8 @@ public record SubmissionResponse(
         Long problemId,
         Long userId,
         String language,
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        String code,
         SubmissionStatus status,
         String judgeMessage,
         Long timeMillis,
@@ -15,4 +19,3 @@ public record SubmissionResponse(
         Instant judgedAt
 ) {
 }
-

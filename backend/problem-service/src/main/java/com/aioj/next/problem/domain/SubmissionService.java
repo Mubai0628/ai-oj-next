@@ -68,7 +68,7 @@ public class SubmissionService {
         submissionMapper.insert(submission);
 
         publishAfterCommit(new JudgeTaskMessage(submission.getId(), request.problemId(), userId, language, TraceIds.current()));
-        return toResponse(submission);
+        return toResponse(submission, false);
     }
 
     public SubmissionResponse get(Long id) {
@@ -77,7 +77,7 @@ public class SubmissionService {
             throw new DomainException(ErrorCode.NOT_FOUND, "Submission not found");
         }
         assertCanRead(submission);
-        return toResponse(submission);
+        return toResponse(submission, true);
     }
 
     public PageResponse<SubmissionResponse> list(long page, long pageSize, Long problemId, Long userId,
@@ -102,7 +102,7 @@ public class SubmissionService {
         }
 
         Page<SubmissionEntity> result = submissionMapper.selectPage(new Page<>(normalizePage(page), normalizePageSize(pageSize)), query);
-        return new PageResponse<>(result.getRecords().stream().map(this::toResponse).toList(),
+        return new PageResponse<>(result.getRecords().stream().map(submission -> toResponse(submission, false)).toList(),
                 result.getTotal(), result.getCurrent(), result.getSize());
     }
 
@@ -122,9 +122,10 @@ public class SubmissionService {
         }
     }
 
-    private SubmissionResponse toResponse(SubmissionEntity submission) {
+    private SubmissionResponse toResponse(SubmissionEntity submission, boolean includeCode) {
         return new SubmissionResponse(submission.getId(), submission.getProblemId(), submission.getUserId(),
-                submission.getLanguage(), submission.getStatus(), submission.getJudgeMessage(),
+                submission.getLanguage(), includeCode ? submission.getCode() : null,
+                submission.getStatus(), submission.getJudgeMessage(),
                 submission.getTimeMillis(), submission.getMemoryKb(), submission.getCreatedAt(), submission.getJudgedAt());
     }
 
