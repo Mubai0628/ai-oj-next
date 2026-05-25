@@ -22,38 +22,6 @@
         />
       </div>
 
-      <div class="problem-short-support">
-        <section class="problem-support-card">
-          <div class="problem-support-card__header">
-            <h3>{{ t('problems.publicSamplePreview') }}</h3>
-            <button v-if="problem.samples.length" type="button" @click="$emit('update:activeTab', 'samples')">
-              {{ t('problems.samplesTab') }}
-            </button>
-          </div>
-          <SampleCaseCard
-            v-if="problem.samples[0]"
-            :sample="problem.samples[0]"
-            :index="1"
-            @copy="$emit('copy-sample', $event)"
-          />
-          <EmptyState v-else :description="t('problems.noSamples')" />
-        </section>
-
-        <section class="problem-support-card">
-          <h3>{{ t('problems.workspaceHintsTitle') }}</h3>
-          <details class="problem-details" open>
-            <summary>{{ t('problems.constraintSummary') }}</summary>
-            <div class="problem-note-grid problem-note-grid--compact">
-              <span>{{ t('problems.timeLimit') }}<strong>{{ problem.timeLimitMillis }} ms</strong></span>
-              <span>{{ t('problems.memoryLimit') }}<strong>{{ problem.memoryLimitMb }} MB</strong></span>
-            </div>
-          </details>
-          <details class="problem-details">
-            <summary>{{ t('problems.hintSummary') }}</summary>
-            <p>{{ t('problems.hintSummaryCopy') }}</p>
-          </details>
-        </section>
-      </div>
     </section>
 
     <section v-else-if="activeTab === 'samples'" class="problem-tab-panel">
