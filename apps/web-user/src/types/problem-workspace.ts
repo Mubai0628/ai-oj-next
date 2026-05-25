@@ -40,7 +40,7 @@ export interface SubmitResultView {
   createdAt?: string;
 }
 
-export type ProblemTabKey = 'statement' | 'samples' | 'notes' | 'related';
+export type ProblemTabKey = 'statement' | 'related';
 export type SplitPaneRatio = number;
 
 export interface AiDrawerState {
