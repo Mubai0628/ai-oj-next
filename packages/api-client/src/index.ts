@@ -460,6 +460,13 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ importProblem })
     }),
+  rejectDraft: (id: EntityId, reasonNote?: string) =>
+    request<ProblemDraftResponse>(`/api/v1/admin/problem-drafts/${id}/reject`, {
+      method: 'POST',
+      body: JSON.stringify({ reasonNote })
+    }),
+  deleteDraft: (id: EntityId) =>
+    request<void>(`/api/v1/admin/problem-drafts/${id}`, { method: 'DELETE' }),
   usage: () => request<AiUsageResponse>('/api/v1/ai/usage/me')
 };
 

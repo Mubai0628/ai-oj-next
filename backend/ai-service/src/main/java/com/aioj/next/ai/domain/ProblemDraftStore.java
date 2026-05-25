@@ -29,6 +29,7 @@ public class ProblemDraftStore {
     private static final ZoneId ZONE = ZoneId.systemDefault();
     private static final String STATUS_PENDING_REVIEW = "PENDING_REVIEW";
     private static final String STATUS_APPROVED = "APPROVED";
+    private static final String STATUS_REJECTED = "REJECTED";
     private static final int DEFAULT_TIME_LIMIT_MILLIS = 1000;
     private static final int DEFAULT_MEMORY_LIMIT_KB = 262144;
 
@@ -171,6 +172,37 @@ public class ProblemDraftStore {
             throw new DomainException(ErrorCode.INTERNAL_ERROR, "Problem draft approval failed");
         }
         return response;
+    }
+
+    @Transactional
+    public ProblemDraftResponse reject(Long id, Long reviewerUserId, String reasonNote) {
+        ProblemDraftEntity draft = problemDraftMapper.selectById(id);
+        if (draft == null) {
+            throw new DomainException(ErrorCode.NOT_FOUND, "Problem draft not found");
+        }
+        if (STATUS_APPROVED.equals(draft.getStatus()) && draft.getImportedProblemId() != null) {
+            throw new DomainException(ErrorCode.CONFLICT, "Cannot reject an already-imported draft");
+        }
+        draft.setStatus(STATUS_REJECTED);
+        draft.setReviewedAt(LocalDateTime.now());
+        draft.setReviewedBy(reviewerUserId);
+        if (reasonNote != null && !reasonNote.isBlank()) {
+            draft.setValidationErrors(toJson(List.of("REJECT_REASON: " + reasonNote.trim())));
+        }
+        problemDraftMapper.updateById(draft);
+        return toResponse(draft);
+    }
+
+    @Transactional
+    public void delete(Long id) {
+        ProblemDraftEntity draft = problemDraftMapper.selectById(id);
+        if (draft == null) {
+            throw new DomainException(ErrorCode.NOT_FOUND, "Problem draft not found");
+        }
+        if (draft.getImportedProblemId() != null) {
+            throw new DomainException(ErrorCode.CONFLICT, "Cannot delete a draft already imported into the problem library");
+        }
+        problemDraftMapper.deleteById(id);
     }
 
     private void persist(Long userId, ProblemDraftResponse response) {

@@ -64,7 +64,7 @@
       </div>
 
       <a-alert v-if="listError" type="error" show-icon :content="listError" />
-      <a-table v-if="drafts.length || loading" :data="drafts" :loading="loading" :pagination="false" row-key="id" :scroll="{ x: 920 }">
+      <a-table v-if="drafts.length || loading" :data="drafts" :loading="loading" :pagination="false" row-key="id" :scroll="{ x: 1040 }">
         <template #columns>
           <a-table-column :title="t('common.title')" data-index="title" :width="220" />
           <a-table-column :title="t('common.difficulty')" :width="120">
@@ -93,14 +93,20 @@
               <a-tag v-else>{{ t('drafts.notImported') }}</a-tag>
             </template>
           </a-table-column>
-          <a-table-column :title="t('common.actions')" :width="230" fixed="right">
+          <a-table-column :title="t('common.actions')" :width="330" fixed="right">
             <template #cell="{ record }">
               <a-space>
                 <a-button size="small" :disabled="activeStatus === 'APPROVED'" @click="approveDraft(record.id)">
                   {{ t('drafts.approve') }}
                 </a-button>
+                <a-popconfirm :content="t('drafts.rejectConfirm')" @ok="openRejectModal(record)">
+                  <a-button size="small" status="warning" :disabled="!!record.importedProblemId">{{ t('drafts.reject') }}</a-button>
+                </a-popconfirm>
                 <a-popconfirm :content="t('drafts.importConfirm')" @ok="importDraft(record)">
                   <a-button size="small" type="primary" :disabled="!!record.importedProblemId">{{ t('drafts.import') }}</a-button>
+                </a-popconfirm>
+                <a-popconfirm :content="t('drafts.deleteConfirm')" @ok="deleteDraft(record.id)">
+                  <a-button size="small" type="outline" status="danger" :disabled="!!record.importedProblemId">{{ t('common.delete') }}</a-button>
                 </a-popconfirm>
               </a-space>
             </template>
@@ -122,6 +128,19 @@
         </article>
       </div>
     </a-card>
+
+    <a-modal v-model:visible="rejectModalVisible" :title="t('drafts.reject')" :ok-loading="rejecting" @ok="confirmReject">
+      <a-form :model="rejectForm" layout="vertical">
+        <a-form-item :label="t('drafts.rejectReasonLabel')">
+          <a-textarea
+            v-model="rejectForm.reasonNote"
+            :max-length="500"
+            :placeholder="t('drafts.rejectReasonPlaceholder')"
+            :auto-size="{ minRows: 4, maxRows: 7 }"
+          />
+        </a-form-item>
+      </a-form>
+    </a-modal>
   </section>
 </template>
 
@@ -146,6 +165,12 @@ const pendingCount = ref(0);
 const approvedCount = ref(0);
 const loading = ref(false);
 const generating = ref(false);
+const rejecting = ref(false);
+const rejectModalVisible = ref(false);
+const rejectTarget = ref<ProblemDraftResponse | null>(null);
+const rejectForm = reactive({
+  reasonNote: ''
+});
 const listError = ref('');
 const generateError = ref('');
 const fieldErrors = ref<Record<string, string>>({});
@@ -245,6 +270,29 @@ async function approveDraft(id: EntityId) {
   }
 }
 
+function openRejectModal(draft: ProblemDraftResponse) {
+  rejectTarget.value = draft;
+  rejectForm.reasonNote = '';
+  rejectModalVisible.value = true;
+}
+
+async function confirmReject() {
+  if (!rejectTarget.value) return;
+  rejecting.value = true;
+  try {
+    await api.rejectDraft(rejectTarget.value.id, rejectForm.reasonNote.trim() || undefined);
+    Message.success(t('drafts.rejectedMessage'));
+    rejectModalVisible.value = false;
+    rejectTarget.value = null;
+    rejectForm.reasonNote = '';
+    await loadDrafts();
+  } catch (caught) {
+    Message.error(caught instanceof ApiError ? caught.userMessage : (caught instanceof Error ? caught.message : t('drafts.rejectFailed')));
+  } finally {
+    rejecting.value = false;
+  }
+}
+
 async function importDraft(draft: ProblemDraftResponse) {
   try {
     const imported = await api.approveDraft(draft.id, true);
@@ -252,6 +300,16 @@ async function importDraft(draft: ProblemDraftResponse) {
     await loadDrafts();
   } catch (caught) {
     Message.error(caught instanceof ApiError ? caught.userMessage : (caught instanceof Error ? caught.message : t('drafts.importFailed')));
+  }
+}
+
+async function deleteDraft(id: EntityId) {
+  try {
+    await api.deleteDraft(id);
+    Message.success(t('drafts.deletedMessage'));
+    await loadDrafts();
+  } catch (caught) {
+    Message.error(caught instanceof ApiError ? caught.userMessage : (caught instanceof Error ? caught.message : t('drafts.deleteFailed')));
   }
 }
 

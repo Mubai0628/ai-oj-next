@@ -18,6 +18,7 @@ import com.aioj.next.contract.ai.AiUsageResponse;
 import com.aioj.next.contract.ai.ProblemDraftApprovalRequest;
 import com.aioj.next.contract.ai.ProblemDraftRequest;
 import com.aioj.next.contract.ai.ProblemDraftResponse;
+import com.aioj.next.contract.ai.ProblemDraftRejectRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -179,6 +180,23 @@ public class AiController {
             @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization
     ) {
         return ApiResponse.ok(problemDraftStore.approve(id, SecuritySupport.currentUserId(), request, authorization));
+    }
+
+    @PostMapping("/admin/problem-drafts/{id}/reject")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<ProblemDraftResponse> rejectDraft(
+            @PathVariable Long id,
+            @RequestBody(required = false) @Valid ProblemDraftRejectRequest request
+    ) {
+        String reason = request == null ? null : request.reasonNote();
+        return ApiResponse.ok(problemDraftStore.reject(id, SecuritySupport.currentUserId(), reason));
+    }
+
+    @DeleteMapping("/admin/problem-drafts/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<Void> deleteDraft(@PathVariable Long id) {
+        problemDraftStore.delete(id);
+        return ApiResponse.ok(null);
     }
 
     @GetMapping("/ai/usage/me")
