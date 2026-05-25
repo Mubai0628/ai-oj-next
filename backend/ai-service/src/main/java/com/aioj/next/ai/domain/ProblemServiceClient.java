@@ -38,6 +38,19 @@ public class ProblemServiceClient {
         if (testCases.isEmpty()) {
             throw new DomainException(ErrorCode.BAD_REQUEST, "Problem draft has no test cases to import");
         }
+        for (int i = 0; i < testCases.size(); i++) {
+            TestCaseDto testCase = testCases.get(i);
+            if (testCase.input() == null || testCase.input().isBlank()) {
+                throw new DomainException(ErrorCode.BAD_REQUEST, "Problem draft testCases[" + i + "].input is blank");
+            }
+            if (testCase.expectedOutput() == null || testCase.expectedOutput().isBlank()) {
+                throw new DomainException(ErrorCode.BAD_REQUEST, "Problem draft testCases[" + i + "].expectedOutput is blank");
+            }
+        }
+        boolean hasSample = testCases.stream().anyMatch(TestCaseDto::sample);
+        if (!hasSample) {
+            throw new DomainException(ErrorCode.BAD_REQUEST, "Problem draft must include at least one sample test case");
+        }
         ProblemCreateRequest request = new ProblemCreateRequest(
                 draft.title(),
                 parseDifficulty(draft.difficulty()),

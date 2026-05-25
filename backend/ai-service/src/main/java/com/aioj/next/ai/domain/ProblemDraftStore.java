@@ -16,6 +16,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -36,19 +37,22 @@ public class ProblemDraftStore {
     private final ProblemDraftMapper problemDraftMapper;
     private final ProblemServiceClient problemServiceClient;
     private final ObjectMapper objectMapper;
+    private final TransactionTemplate transactionTemplate;
 
     public ProblemDraftStore(
             AiProvider aiProvider,
             AiQuotaService aiQuotaService,
             ProblemDraftMapper problemDraftMapper,
             ProblemServiceClient problemServiceClient,
-            ObjectMapper objectMapper
+            ObjectMapper objectMapper,
+            TransactionTemplate transactionTemplate
     ) {
         this.aiProvider = aiProvider;
         this.aiQuotaService = aiQuotaService;
         this.problemDraftMapper = problemDraftMapper;
         this.problemServiceClient = problemServiceClient;
         this.objectMapper = objectMapper;
+        this.transactionTemplate = transactionTemplate;
     }
 
     @Transactional
@@ -64,6 +68,14 @@ public class ProblemDraftStore {
                 validationErrors.addAll(raw.validationErrors());
             }
             validationErrors.addAll(validate(raw));
+            Integer rawTime = raw.timeLimitMillis();
+            Integer rawMem = raw.memoryLimitKb();
+            if (rawTime == null || rawTime <= 0) {
+                validationErrors.add("timeLimitMillis missing — defaulted to " + DEFAULT_TIME_LIMIT_MILLIS);
+            }
+            if (rawMem == null || rawMem <= 0) {
+                validationErrors.add("memoryLimitKb missing — defaulted to " + DEFAULT_MEMORY_LIMIT_KB);
+            }
             String validationStatus = validationErrors.isEmpty() ? "VALID" : "INVALID";
             ProblemDraftResponse response = new ProblemDraftResponse(
                     id,
@@ -74,8 +86,8 @@ public class ProblemDraftStore {
                     validationStatus,
                     validationErrors,
                     normalizeTestCases(raw.testCases()),
-                    limitOrDefault(raw.timeLimitMillis(), DEFAULT_TIME_LIMIT_MILLIS),
-                    limitOrDefault(raw.memoryLimitKb(), DEFAULT_MEMORY_LIMIT_KB),
+                    limitOrDefault(rawTime, DEFAULT_TIME_LIMIT_MILLIS),
+                    limitOrDefault(rawMem, DEFAULT_MEMORY_LIMIT_KB),
                     raw.importedProblemId(),
                     nonBlank(raw.model(), aiProvider.model()),
                     Math.max(0, raw.promptTokens()),
@@ -123,22 +135,42 @@ public class ProblemDraftStore {
         return new PageResponse<>(records, total, current, size);
     }
 
-    @Transactional
     public ProblemDraftResponse approve(Long id, Long reviewerUserId, ProblemDraftApprovalRequest request, String authorization) {
         ProblemDraftEntity draft = problemDraftMapper.selectById(id);
         if (draft == null) {
             throw new DomainException(ErrorCode.NOT_FOUND, "Problem draft not found");
         }
         boolean importProblem = request != null && Boolean.TRUE.equals(request.importProblem());
-        if (importProblem && draft.getImportedProblemId() == null) {
-            Long problemId = problemServiceClient.createProblem(toResponse(draft), authorization);
-            draft.setImportedProblemId(problemId);
+        if (importProblem && "INVALID".equals(draft.getValidationStatus())) {
+            throw new DomainException(ErrorCode.VALIDATION_FAILED,
+                    "Cannot import an invalid draft. Please regenerate or fix the validation errors first.");
         }
-        draft.setStatus(STATUS_APPROVED);
-        draft.setReviewedAt(LocalDateTime.now());
-        draft.setReviewedBy(reviewerUserId);
-        problemDraftMapper.updateById(draft);
-        return toResponse(draft);
+        Long importedProblemId = draft.getImportedProblemId();
+        if (importProblem && importedProblemId == null) {
+            importedProblemId = problemServiceClient.createProblem(toResponse(draft), authorization);
+        }
+        return finalizeApproval(id, reviewerUserId, importedProblemId);
+    }
+
+    private ProblemDraftResponse finalizeApproval(Long id, Long reviewerUserId, Long importedProblemId) {
+        ProblemDraftResponse response = transactionTemplate.execute(status -> {
+            ProblemDraftEntity draft = problemDraftMapper.selectById(id);
+            if (draft == null) {
+                throw new DomainException(ErrorCode.NOT_FOUND, "Problem draft not found");
+            }
+            if (importedProblemId != null) {
+                draft.setImportedProblemId(importedProblemId);
+            }
+            draft.setStatus(STATUS_APPROVED);
+            draft.setReviewedAt(LocalDateTime.now());
+            draft.setReviewedBy(reviewerUserId);
+            problemDraftMapper.updateById(draft);
+            return toResponse(draft);
+        });
+        if (response == null) {
+            throw new DomainException(ErrorCode.INTERNAL_ERROR, "Problem draft approval failed");
+        }
+        return response;
     }
 
     private void persist(Long userId, ProblemDraftResponse response) {
@@ -206,6 +238,20 @@ public class ProblemDraftStore {
         }
         if (response.testCases() == null || response.testCases().isEmpty()) {
             errors.add("testCases must include at least one case");
+        } else {
+            for (int i = 0; i < response.testCases().size(); i++) {
+                TestCaseDto tc = response.testCases().get(i);
+                if (tc.input() == null || tc.input().isBlank()) {
+                    errors.add("testCases[" + i + "].input is blank");
+                }
+                if (tc.expectedOutput() == null || tc.expectedOutput().isBlank()) {
+                    errors.add("testCases[" + i + "].expectedOutput is blank");
+                }
+            }
+            boolean hasSample = response.testCases().stream().anyMatch(TestCaseDto::sample);
+            if (!hasSample) {
+                errors.add("at least one testCase must be marked sample=true");
+            }
         }
         return errors;
     }
