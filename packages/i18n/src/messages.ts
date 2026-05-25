@@ -669,7 +669,10 @@ export const messages = {
       filterInvalid: '无效',
       filterMine: '仅我生成',
       sortNewest: '最新优先',
-      sortOldest: '最早优先'
+      sortOldest: '最早优先',
+      quotaToday: '今日 {used}/{total}',
+      quotaMonth: '本月 {used}/{total}',
+      quotaUnavailable: '配额读取失败'
     },
     blocked: {
       tag: '访问受限',
@@ -1388,7 +1391,10 @@ export const messages = {
       filterInvalid: 'Invalid',
       filterMine: 'Mine only',
       sortNewest: 'Newest first',
-      sortOldest: 'Oldest first'
+      sortOldest: 'Oldest first',
+      quotaToday: 'Today {used}/{total}',
+      quotaMonth: 'This month {used}/{total}',
+      quotaUnavailable: 'Quota unavailable'
     },
     blocked: {
       tag: 'Access blocked',

@@ -9,6 +9,14 @@
             <p>{{ t('drafts.generateCopy') }}</p>
           </div>
         </div>
+        <div v-if="quota" class="draft-quota-chip">
+          <span>{{ t('drafts.quotaToday', { used: quota.usedToday, total: quota.dailyLimit }) }}</span>
+          <span>·</span>
+          <span>{{ t('drafts.quotaMonth', { used: quota.usedThisMonth, total: quota.monthlyLimit }) }}</span>
+        </div>
+        <div v-else-if="quotaError" class="draft-quota-chip draft-quota-chip--muted">
+          {{ t('drafts.quotaUnavailable') }}
+        </div>
       </div>
 
       <a-alert v-if="generateError" type="error" show-icon class="form-alert" :content="generateError" />
@@ -173,7 +181,7 @@
 import { computed, onMounted, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Message } from '@arco-design/web-vue';
-import { ApiError, api, type Difficulty, type EntityId, type ProblemDraftResponse } from '@aioj/api-client';
+import { ApiError, api, type AiUsageResponse, type Difficulty, type EntityId, type ProblemDraftResponse } from '@aioj/api-client';
 import AiDraftDetailDrawer from '@/components/AiDraftDetailDrawer.vue';
 import { useAuthStore } from '@/stores/auth';
 
@@ -199,6 +207,8 @@ const approvedCount = ref(0);
 const loading = ref(false);
 const generating = ref(false);
 const rejecting = ref(false);
+const quota = ref<AiUsageResponse | null>(null);
+const quotaError = ref(false);
 const rejectModalVisible = ref(false);
 const rejectTarget = ref<ProblemDraftResponse | null>(null);
 const detailVisible = ref(false);
@@ -265,6 +275,16 @@ async function loadDrafts() {
   }
 }
 
+async function loadQuota() {
+  quotaError.value = false;
+  try {
+    quota.value = await api.usage();
+  } catch {
+    quota.value = null;
+    quotaError.value = true;
+  }
+}
+
 async function setStatus(value: string | number) {
   activeStatus.value = value as DraftStatus;
   await loadDrafts();
@@ -292,6 +312,7 @@ async function openDraftById(id: EntityId) {
 async function handleDraftUpdated(draft: ProblemDraftResponse) {
   selectedDraft.value = draft;
   await loadDrafts();
+  await loadQuota();
 }
 
 async function generateDraft() {
@@ -312,6 +333,7 @@ async function generateDraft() {
       activeStatus.value = 'PENDING_REVIEW';
       await loadDrafts();
     }
+    await loadQuota();
     fieldErrors.value = {};
   } catch (caught) {
     if (caught instanceof ApiError) {
@@ -384,5 +406,8 @@ async function deleteDraft(id: EntityId) {
   }
 }
 
-onMounted(loadDrafts);
+onMounted(() => {
+  void loadDrafts();
+  void loadQuota();
+});
 </script>

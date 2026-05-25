@@ -573,6 +573,23 @@ textarea {
   font-weight: 800;
 }
 
+.draft-quota-chip {
+  display: inline-flex;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #eff6ff;
+  color: #1e3a8a;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.draft-quota-chip--muted {
+  background: #f8fafc;
+  color: #64748b;
+}
+
 .draft-tip {
   display: flex;
   gap: 10px;
