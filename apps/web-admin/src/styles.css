@@ -1545,6 +1545,24 @@ td a {
   min-height: 360px;
 }
 
+.draft-filter-row {
+  margin: 12px 0 16px;
+  padding: 10px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.draft-filter-label {
+  color: #475569;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.draft-sort-select {
+  width: 140px;
+}
+
 .draft-cases-head,
 .draft-case-head {
   display: flex;

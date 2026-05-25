@@ -63,6 +63,22 @@
         <a-button :loading="loading" @click="loadDrafts">{{ t('common.refresh') }}</a-button>
       </div>
 
+      <div class="draft-filter-row">
+        <a-space wrap>
+          <span class="draft-filter-label">{{ t('drafts.filterValidation') }}</span>
+          <a-radio-group v-model="validationFilter" type="button" @change="loadDrafts">
+            <a-radio value="">{{ t('drafts.filterAll') }}</a-radio>
+            <a-radio value="VALID">{{ t('drafts.filterValid') }}</a-radio>
+            <a-radio value="INVALID">{{ t('drafts.filterInvalid') }}</a-radio>
+          </a-radio-group>
+          <a-checkbox v-model="mineOnly" @change="loadDrafts">{{ t('drafts.filterMine') }}</a-checkbox>
+          <a-select v-model="sortOrder" class="draft-sort-select" @change="loadDrafts">
+            <a-option value="newest">{{ t('drafts.sortNewest') }}</a-option>
+            <a-option value="oldest">{{ t('drafts.sortOldest') }}</a-option>
+          </a-select>
+        </a-space>
+      </div>
+
       <a-alert v-if="listError" type="error" show-icon :content="listError" />
       <a-table
         v-if="drafts.length || loading"
@@ -159,10 +175,14 @@ import { useI18n } from 'vue-i18n';
 import { Message } from '@arco-design/web-vue';
 import { ApiError, api, type Difficulty, type EntityId, type ProblemDraftResponse } from '@aioj/api-client';
 import AiDraftDetailDrawer from '@/components/AiDraftDetailDrawer.vue';
+import { useAuthStore } from '@/stores/auth';
 
 type DraftStatus = 'PENDING_REVIEW' | 'APPROVED';
+type ValidationFilter = '' | 'VALID' | 'INVALID';
+type SortOrder = 'newest' | 'oldest';
 
 const { t } = useI18n();
+const auth = useAuthStore();
 const difficulties: Difficulty[] = ['EASY', 'MEDIUM', 'HARD', 'CHALLENGE'];
 const form = reactive({
   topic: '',
@@ -170,6 +190,9 @@ const form = reactive({
   teachingGoal: ''
 });
 const activeStatus = ref<DraftStatus>('PENDING_REVIEW');
+const validationFilter = ref<ValidationFilter>('');
+const mineOnly = ref(false);
+const sortOrder = ref<SortOrder>('newest');
 const drafts = ref<ProblemDraftResponse[]>([]);
 const pendingCount = ref(0);
 const approvedCount = ref(0);
@@ -207,14 +230,25 @@ function fieldError(path: string) {
   return fieldErrors.value[path];
 }
 
+function draftListParams(status: DraftStatus, pageSize: number) {
+  return {
+    page: 1,
+    pageSize,
+    status,
+    validationStatus: validationFilter.value || undefined,
+    creatorUserId: mineOnly.value ? auth.profile?.userId : undefined,
+    sort: sortOrder.value
+  };
+}
+
 async function loadDrafts() {
   loading.value = true;
   listError.value = '';
   try {
     const oppositeStatus = activeStatus.value === 'PENDING_REVIEW' ? 'APPROVED' : 'PENDING_REVIEW';
     const [page, otherCount] = await Promise.all([
-      api.problemDrafts({ page: 1, pageSize: 50, status: activeStatus.value }),
-      api.problemDrafts({ page: 1, pageSize: 1, status: oppositeStatus })
+      api.problemDrafts(draftListParams(activeStatus.value, 50)),
+      api.problemDrafts(draftListParams(oppositeStatus, 1))
     ]);
     drafts.value = page.records;
     if (activeStatus.value === 'PENDING_REVIEW') {

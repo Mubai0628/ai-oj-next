@@ -169,9 +169,13 @@ public class AiController {
     public ApiResponse<PageResponse<ProblemDraftResponse>> listDrafts(
             @RequestParam(defaultValue = "1") long page,
             @RequestParam(defaultValue = "20") long pageSize,
-            @RequestParam(required = false) String status
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String validationStatus,
+            @RequestParam(required = false) Long creatorUserId,
+            @RequestParam(required = false, defaultValue = "newest") String sort
     ) {
-        return ApiResponse.ok(problemDraftStore.list(page, pageSize, status));
+        String direction = "oldest".equalsIgnoreCase(sort) ? "ASC" : "DESC";
+        return ApiResponse.ok(problemDraftStore.list(page, pageSize, status, validationStatus, creatorUserId, direction));
     }
 
     @GetMapping("/admin/problem-drafts/{id}")

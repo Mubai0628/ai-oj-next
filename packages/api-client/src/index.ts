@@ -466,7 +466,14 @@ export const api = {
     request<void>(`/api/v1/ai/conversations/${encodeURIComponent(conversationId)}`, { method: 'DELETE' }),
   generateDraft: (payload: { topic: string; difficulty?: string; teachingGoal?: string }) =>
     request<ProblemDraftResponse>('/api/v1/ai/problem-drafts/generate', { method: 'POST', body: JSON.stringify(payload) }),
-  problemDrafts: (params: { page?: number; pageSize?: number; status?: string } = {}) =>
+  problemDrafts: (params: {
+    page?: number;
+    pageSize?: number;
+    status?: string;
+    validationStatus?: 'VALID' | 'INVALID';
+    creatorUserId?: EntityId;
+    sort?: 'newest' | 'oldest';
+  } = {}) =>
     request<PageResponse<ProblemDraftResponse>>(`/api/v1/admin/problem-drafts${queryString({ page: 1, pageSize: 20, ...params })}`),
   problemDraft: (id: EntityId) =>
     request<ProblemDraftResponse>(`/api/v1/admin/problem-drafts/${id}`),

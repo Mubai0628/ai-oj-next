@@ -117,27 +117,51 @@ public class ProblemDraftStore {
         }
     }
 
-    public PageResponse<ProblemDraftResponse> list(long page, long pageSize, String status) {
+    public PageResponse<ProblemDraftResponse> list(
+            long page,
+            long pageSize,
+            String status,
+            String validationStatus,
+            Long creatorUserId,
+            String sortDirection
+    ) {
         long current = Math.max(1, page);
         long size = Math.min(Math.max(1, pageSize), 100);
         long offset = (current - 1) * size;
         QueryWrapper<ProblemDraftEntity> countQuery = new QueryWrapper<>();
-        if (status != null && !status.isBlank()) {
-            countQuery.eq("status", status);
-        }
+        applyListFilters(countQuery, status, validationStatus, creatorUserId);
         long total = problemDraftMapper.selectCount(countQuery);
 
-        QueryWrapper<ProblemDraftEntity> pageQuery = new QueryWrapper<ProblemDraftEntity>()
-                .orderByDesc("created_at")
-                .last("LIMIT " + size + " OFFSET " + offset);
-        if (status != null && !status.isBlank()) {
-            pageQuery.eq("status", status);
+        QueryWrapper<ProblemDraftEntity> pageQuery = new QueryWrapper<>();
+        applyListFilters(pageQuery, status, validationStatus, creatorUserId);
+        if ("ASC".equalsIgnoreCase(sortDirection)) {
+            pageQuery.orderByAsc("created_at");
+        } else {
+            pageQuery.orderByDesc("created_at");
         }
+        pageQuery.last("LIMIT " + size + " OFFSET " + offset);
         List<ProblemDraftResponse> records = problemDraftMapper.selectList(pageQuery)
                 .stream()
                 .map(this::toResponse)
                 .toList();
         return new PageResponse<>(records, total, current, size);
+    }
+
+    private void applyListFilters(
+            QueryWrapper<ProblemDraftEntity> query,
+            String status,
+            String validationStatus,
+            Long creatorUserId
+    ) {
+        if (status != null && !status.isBlank()) {
+            query.eq("status", status);
+        }
+        if (validationStatus != null && !validationStatus.isBlank()) {
+            query.eq("validation_status", validationStatus);
+        }
+        if (creatorUserId != null) {
+            query.eq("creator_user_id", creatorUserId);
+        }
     }
 
     public ProblemDraftResponse get(Long id) {

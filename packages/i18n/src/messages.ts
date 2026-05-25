@@ -662,7 +662,14 @@ export const messages = {
       regeneratedMessage: 'AI 已生成新版本 #{id}',
       refineFailed: '保存改写失败',
       regenerateFailed: 'AI 改写失败',
-      chainParentLabel: '改写自草稿 #{id}'
+      chainParentLabel: '改写自草稿 #{id}',
+      filterValidation: '校验状态',
+      filterAll: '全部',
+      filterValid: '有效',
+      filterInvalid: '无效',
+      filterMine: '仅我生成',
+      sortNewest: '最新优先',
+      sortOldest: '最早优先'
     },
     blocked: {
       tag: '访问受限',
@@ -1374,7 +1381,14 @@ export const messages = {
       regeneratedMessage: 'AI generated new draft #{id}',
       refineFailed: 'Refinement failed',
       regenerateFailed: 'AI regeneration failed',
-      chainParentLabel: 'Refined from draft #{id}'
+      chainParentLabel: 'Refined from draft #{id}',
+      filterValidation: 'Validation',
+      filterAll: 'All',
+      filterValid: 'Valid',
+      filterInvalid: 'Invalid',
+      filterMine: 'Mine only',
+      sortNewest: 'Newest first',
+      sortOldest: 'Oldest first'
     },
     blocked: {
       tag: 'Access blocked',
