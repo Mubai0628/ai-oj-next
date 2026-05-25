@@ -22,30 +22,17 @@
           <template #extra>{{ t('problems.charCount', { count: form.topic.length, max: 100 }) }}</template>
         </a-form-item>
 
-        <div class="form-grid two">
-          <a-form-item
-            :label="t('common.difficulty')"
-            :validate-status="fieldError('difficulty') ? 'error' : undefined"
-            :help="fieldError('difficulty') || undefined"
-          >
-            <a-select v-model="form.difficulty">
-              <a-option v-for="difficulty in difficulties" :key="difficulty" :value="difficulty">
-                {{ difficultyIcon(difficulty) }} {{ t(`difficulty.${difficulty}`) }}
-              </a-option>
-            </a-select>
-          </a-form-item>
-          <a-form-item
-            :label="t('drafts.count')"
-            :validate-status="fieldError('count') ? 'error' : undefined"
-            :help="fieldError('count') || undefined"
-          >
-            <div class="draft-count-stepper">
-              <button type="button" :disabled="form.count <= 1" @click="form.count -= 1">−</button>
-              <a-input-number v-model="form.count" :min="1" :max="5" hide-button />
-              <button type="button" :disabled="form.count >= 5" @click="form.count += 1">+</button>
-            </div>
-          </a-form-item>
-        </div>
+        <a-form-item
+          :label="t('common.difficulty')"
+          :validate-status="fieldError('difficulty') ? 'error' : undefined"
+          :help="fieldError('difficulty') || undefined"
+        >
+          <a-select v-model="form.difficulty">
+            <a-option v-for="difficulty in difficulties" :key="difficulty" :value="difficulty">
+              {{ difficultyIcon(difficulty) }} {{ t(`difficulty.${difficulty}`) }}
+            </a-option>
+          </a-select>
+        </a-form-item>
 
         <a-form-item
           :label="t('drafts.teachingGoal')"
@@ -151,7 +138,6 @@ const difficulties: Difficulty[] = ['EASY', 'MEDIUM', 'HARD', 'CHALLENGE'];
 const form = reactive({
   topic: '',
   difficulty: 'EASY' as Difficulty,
-  count: 1,
   teachingGoal: ''
 });
 const activeStatus = ref<DraftStatus>('PENDING_REVIEW');
@@ -226,7 +212,6 @@ async function generateDraft() {
     const draft = await api.generateDraft({
       topic: form.topic.trim(),
       difficulty: form.difficulty,
-      count: Number(form.count || 1),
       teachingGoal: form.teachingGoal.trim() || undefined
     });
     Message.success(t('drafts.generated'));

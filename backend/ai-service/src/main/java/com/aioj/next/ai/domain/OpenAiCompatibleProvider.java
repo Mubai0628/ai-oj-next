@@ -211,7 +211,6 @@ public class OpenAiCompatibleProvider implements AiProvider {
     private String problemDraftUserPrompt(ProblemDraftRequest request) {
         return "题目主题：" + request.topic()
                 + "\n目标难度：" + (request.difficulty() == null ? "" : request.difficulty())
-                + "\n生成数量提示：" + request.count()
                 + "\n教学目标：" + (request.teachingGoal() == null ? "" : request.teachingGoal());
     }
 

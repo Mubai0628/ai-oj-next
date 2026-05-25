@@ -451,7 +451,7 @@ export const api = {
     request<AiChatMessageResponse[]>(`/api/v1/ai/conversations/${encodeURIComponent(conversationId)}/messages`),
   deleteAiConversation: (conversationId: string) =>
     request<void>(`/api/v1/ai/conversations/${encodeURIComponent(conversationId)}`, { method: 'DELETE' }),
-  generateDraft: (payload: { topic: string; difficulty?: string; count: number; teachingGoal?: string }) =>
+  generateDraft: (payload: { topic: string; difficulty?: string; teachingGoal?: string }) =>
     request<ProblemDraftResponse>('/api/v1/ai/problem-drafts/generate', { method: 'POST', body: JSON.stringify(payload) }),
   problemDrafts: (params: { page?: number; pageSize?: number; status?: string } = {}) =>
     request<PageResponse<ProblemDraftResponse>>(`/api/v1/admin/problem-drafts${queryString({ page: 1, pageSize: 20, ...params })}`),
