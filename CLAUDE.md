@@ -111,7 +111,7 @@ graphify-out/             知识图谱（.gitignore，本地用 graphify update 
 ### 5.5 数据库迁移
 - 用 Flyway。脚本放 `api-contract/src/main/resources/db/migration/V{N}__{name}.sql`。
 - **只往后加，禁止改历史 V*.sql 内容**。
-- 字段命名 snake_case。表名单数（`user`、`problem`、`submission`）。
+- 字段命名 snake_case。**表名复数**（`users`、`problems`、`submissions`、`problem_test_cases` 等，与 V1 baseline 一致）。MyBatis-Plus 实体上用 `@TableName("problems")` 显式声明。
 - 部署时让**一个**实例先跑迁移，其他实例后启动（详见 docs/deployment.md）。
 
 ### 5.6 AI 模块

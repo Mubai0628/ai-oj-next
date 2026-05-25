@@ -97,6 +97,10 @@
 ## 7. 近期 commit（HEAD 倒序）
 
 ```
+230ede5 use markdown editor for problem statement and notes
+a336f5d add problem notes field for student explanation
+f92c141 refine problem editor density and sample layout
+836d2e6 docs add handover roadmap and codex prompt workflow
 1b1e89c refine admin dashboard accuracy and small UX bugs
 5c09069 fix admin frontend correctness and session bugs
 7012b57 refine admin problem editor tabs
@@ -105,11 +109,29 @@
 2ae4bc3 refine admin workspace and problem editor
 d27d906 improve admin session registration and editor
 99c5368 fix ai markdown streaming and filters
-3449d6c fix ai tutor filters markdown rendering
-3ca136f refactor ai assistant workspace history
-67daf2d refactor problem workspace split pane
-b297a9f refactor web user problem workspace
 ```
+
+### 题目编辑器升级（commits `f92c141` + `a336f5d` + `230ede5`）
+
+**视觉重构**（`f92c141`）：
+- 基础信息 tab：信息条 → inline 小字提示；卡片 padding 收紧；preview 侧栏密度提升；卡片 hover 抖动移除
+- 题面与样例 tab：sample input/output 由并列改 stack（每个 textarea 从 ~170px → ~440px）；字符计数浮到 textarea 右下角
+
+**Notes 字段全链路**（`a336f5d` 后端 + `230ede5` 前端）：
+- Flyway V5 给 `problems` 表加 `notes TEXT NULL`（向后兼容，老题 NULL）
+- 三端 DTO 同步：`ProblemCreateRequest` / `ProblemUpdateRequest` / `ProblemResponse` 加 `notes` 字段（`@Size(max=20000)`）
+- `ProblemCatalog` 增 `normalizeNotes()`：空 trim → null，避免 DB 存空串
+- 学生端 ProblemDetailView「说明」tab：有 `notes` 渲染 Markdown，无则显示 `notesEmpty` 文案
+
+**Markdown 编辑器集成**：
+- 新依赖：`md-editor-v3 ^5.8.5`（根 package.json，npm workspaces hoist 到 admin 和 user）
+- 管理端 ProblemEditorDrawer：自研 7 按钮 toolbar + `<a-textarea>` 整体替换为 `<MdEditor>`（statement + notes 两个）
+- 学生端 ProblemPane：`v-html="statementHtml"` 替换为 `<MdPreview>`，**编辑解析器和展示解析器一致**（杜绝 WYSIWYG drift）
+- 题面与样例 tab 改竖向：statement 编辑器 → notes 编辑器 → 样例卡片，每个全宽
+
+**新增 i18n keys**（中英同步）：`problems.notesLabel`、`problems.notesEditorPlaceholder`、`problems.notesHelper`、`problems.notesEmpty`
+
+### 本次 admin 修复明细（commits `5c09069` + `1b1e89c`）
 
 ### 本次 admin 修复明细（commits `5c09069` + `1b1e89c`）
 
