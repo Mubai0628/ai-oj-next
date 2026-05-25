@@ -6,6 +6,8 @@ import com.aioj.next.common.api.PageResponse;
 import com.aioj.next.common.error.DomainException;
 import com.aioj.next.common.error.ErrorCode;
 import com.aioj.next.contract.ai.ProblemDraftApprovalRequest;
+import com.aioj.next.contract.ai.ProblemDraftRefineRequest;
+import com.aioj.next.contract.ai.ProblemDraftRegenerateRequest;
 import com.aioj.next.contract.ai.ProblemDraftRequest;
 import com.aioj.next.contract.ai.ProblemDraftResponse;
 import com.aioj.next.contract.problem.TestCaseDto;
@@ -138,6 +140,113 @@ public class ProblemDraftStore {
         return new PageResponse<>(records, total, current, size);
     }
 
+    public ProblemDraftResponse get(Long id) {
+        ProblemDraftEntity draft = problemDraftMapper.selectById(id);
+        if (draft == null) {
+            throw new DomainException(ErrorCode.NOT_FOUND, "Problem draft not found");
+        }
+        return toResponse(draft);
+    }
+
+    @Transactional
+    public ProblemDraftResponse refine(Long parentId, Long userId, ProblemDraftRefineRequest request) {
+        if (request == null) {
+            throw new DomainException(ErrorCode.BAD_REQUEST, "Refinement request is required");
+        }
+        ProblemDraftEntity parent = problemDraftMapper.selectById(parentId);
+        if (parent == null) {
+            throw new DomainException(ErrorCode.NOT_FOUND, "Original draft not found");
+        }
+        DraftPayload parentPayload = readPayload(parent.getDraftJson());
+        int timeLimitMillis = limitOrDefault(parentPayload.timeLimitMillis(), DEFAULT_TIME_LIMIT_MILLIS);
+        int memoryLimitKb = limitOrDefault(parentPayload.memoryLimitKb(), DEFAULT_MEMORY_LIMIT_KB);
+        Long newId = IdWorker.getId();
+        ProblemDraftResponse refined = new ProblemDraftResponse(
+                newId,
+                nonBlank(request.title(), parent.getTitle()),
+                nonBlank(request.difficulty(), parent.getDifficulty()),
+                request.statement() == null ? parentPayload.statement() : request.statement(),
+                request.tags() == null ? parentPayload.tags() : request.tags(),
+                "VALID",
+                List.of(),
+                normalizeTestCases(request.testCases() == null ? parentPayload.testCases() : request.testCases()),
+                limitOrDefault(request.timeLimitMillis(), timeLimitMillis),
+                limitOrDefault(request.memoryLimitKb(), memoryLimitKb),
+                null,
+                parent.getModel(),
+                0,
+                0,
+                Instant.now(),
+                parentId,
+                request.refineNote()
+        );
+        List<String> validationErrors = new ArrayList<>(validate(refined));
+        ProblemDraftResponse finalDraft = withValidation(refined, validationErrors.isEmpty() ? "VALID" : "INVALID", validationErrors);
+        persist(userId, finalDraft);
+        return finalDraft;
+    }
+
+    public ProblemDraftResponse regenerate(Long parentId, Long userId, ProblemDraftRegenerateRequest request) {
+        if (request == null) {
+            throw new DomainException(ErrorCode.BAD_REQUEST, "Regeneration request is required");
+        }
+        aiQuotaService.assertAvailable(userId);
+        ProblemDraftEntity parent = problemDraftMapper.selectById(parentId);
+        if (parent == null) {
+            throw new DomainException(ErrorCode.NOT_FOUND, "Original draft not found");
+        }
+        ProblemDraftResponse parentDraft = toResponse(parent);
+        ProblemDraftResponse generated = null;
+        try {
+            generated = aiProvider.regenerateProblemDraft(IdWorker.getId(), parentDraft, request.feedback());
+            if (generated == null) {
+                throw new DomainException(ErrorCode.INTERNAL_ERROR, "Provider returned no draft");
+            }
+            ProblemDraftResponse raw = generated;
+            List<String> validationErrors = new ArrayList<>();
+            if (raw.validationErrors() != null) {
+                validationErrors.addAll(raw.validationErrors());
+            }
+            validationErrors.addAll(validate(raw));
+            Integer rawTime = raw.timeLimitMillis();
+            Integer rawMem = raw.memoryLimitKb();
+            if (rawTime == null || rawTime <= 0) {
+                validationErrors.add("timeLimitMillis missing — defaulted to " + DEFAULT_TIME_LIMIT_MILLIS);
+            }
+            if (rawMem == null || rawMem <= 0) {
+                validationErrors.add("memoryLimitKb missing — defaulted to " + DEFAULT_MEMORY_LIMIT_KB);
+            }
+            ProblemDraftResponse finalDraft = new ProblemDraftResponse(
+                    raw.id(),
+                    nonBlank(raw.title(), parent.getTitle()),
+                    nonBlank(raw.difficulty(), parent.getDifficulty()),
+                    raw.statement(),
+                    raw.tags() == null ? List.of() : raw.tags(),
+                    validationErrors.isEmpty() ? "VALID" : "INVALID",
+                    validationErrors,
+                    normalizeTestCases(raw.testCases()),
+                    limitOrDefault(rawTime, DEFAULT_TIME_LIMIT_MILLIS),
+                    limitOrDefault(rawMem, DEFAULT_MEMORY_LIMIT_KB),
+                    null,
+                    nonBlank(raw.model(), aiProvider.model()),
+                    Math.max(0, raw.promptTokens()),
+                    Math.max(0, raw.completionTokens()),
+                    raw.createdAt() == null ? Instant.now() : raw.createdAt(),
+                    parentId,
+                    request.feedback()
+            );
+            transactionTemplate.executeWithoutResult(status -> persist(userId, finalDraft));
+            aiQuotaService.record(userId, aiProvider.providerName(), finalDraft.model(),
+                    finalDraft.promptTokens(), finalDraft.completionTokens(), true);
+            return finalDraft;
+        } catch (RuntimeException ex) {
+            long promptTokens = generated == null ? 0 : generated.promptTokens();
+            long completionTokens = generated == null ? 0 : generated.completionTokens();
+            aiQuotaService.record(userId, aiProvider.providerName(), aiProvider.model(), promptTokens, completionTokens, false);
+            throw ex;
+        }
+    }
+
     public ProblemDraftResponse approve(Long id, Long reviewerUserId, ProblemDraftApprovalRequest request, String authorization) {
         ProblemDraftEntity draft = problemDraftMapper.selectById(id);
         if (draft == null) {
@@ -231,6 +340,13 @@ public class ProblemDraftStore {
         entity.setRefineNote(response.refineNote());
         entity.setCreatedAt(LocalDateTime.now());
         problemDraftMapper.insert(entity);
+    }
+
+    private ProblemDraftResponse withValidation(ProblemDraftResponse source, String status, List<String> errors) {
+        return new ProblemDraftResponse(source.id(), source.title(), source.difficulty(), source.statement(),
+                source.tags(), status, errors, source.testCases(), source.timeLimitMillis(), source.memoryLimitKb(),
+                source.importedProblemId(), source.model(), source.promptTokens(), source.completionTokens(),
+                source.createdAt(), source.refinedFromDraftId(), source.refineNote());
     }
 
     private ProblemDraftResponse toResponse(ProblemDraftEntity entity) {

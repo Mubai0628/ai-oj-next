@@ -62,28 +62,26 @@ public class OpenAiCompatibleProvider implements AiProvider {
                 message("user", problemDraftUserPrompt(request))
         ), 0.2);
         try {
-            JsonNode root = objectMapper.readTree(extractJson(result.content()));
-            return new ProblemDraftResponse(
-                    id,
-                    text(root, "title"),
-                    text(root, "difficulty"),
-                    text(root, "statement"),
-                    stringArray(root.get("tags")),
-                    "VALID",
-                    List.of(),
-                    testCases(root.get("testCases")),
-                    integer(root, "timeLimitMillis"),
-                    integer(root, "memoryLimitKb"),
-                    null,
-                    model(),
-                    result.promptTokens(),
-                    result.completionTokens(),
-                    Instant.now(),
-                    null,
-                    null
-            );
+            return parseProblemDraft(id, result);
         } catch (Exception ex) {
             return invalidProblemDraft(id, request, "Provider returned invalid problem draft JSON: " + ex.getMessage(), result);
+        }
+    }
+
+    @Override
+    public ProblemDraftResponse regenerateProblemDraft(Long id, ProblemDraftResponse parentDraft, String feedback) {
+        if (!hasApiKey()) {
+            return fallbackRegeneratedProblemDraft(id, parentDraft, feedback);
+        }
+        CompletionResult result = complete(List.of(
+                message("system", problemDraftSystemPrompt()),
+                message("user", problemDraftRegeneratePrompt(parentDraft, feedback))
+        ), 0.2);
+        try {
+            return parseProblemDraft(id, result);
+        } catch (Exception ex) {
+            return invalidProblemDraft(id, parentDraft.title(), parentDraft.difficulty(),
+                    "Provider returned invalid regenerated draft JSON: " + ex.getMessage(), result);
         }
     }
 
@@ -173,11 +171,40 @@ public class OpenAiCompatibleProvider implements AiProvider {
         );
     }
 
-    private ProblemDraftResponse invalidProblemDraft(Long id, ProblemDraftRequest request, String error, CompletionResult result) {
+    private ProblemDraftResponse fallbackRegeneratedProblemDraft(Long id, ProblemDraftResponse parentDraft, String feedback) {
+        String title = parentDraft.title() == null || parentDraft.title().isBlank() ? "Regenerated practice" : parentDraft.title() + " refined";
+        String statement = parentDraft.statement() + "\n\n改进说明：" + (feedback == null ? "" : feedback);
         return new ProblemDraftResponse(
                 id,
-                request.topic() + " practice",
-                request.difficulty() == null || request.difficulty().isBlank() ? "EASY" : request.difficulty(),
+                title,
+                parentDraft.difficulty(),
+                statement,
+                parentDraft.tags() == null ? List.of() : parentDraft.tags(),
+                "VALID",
+                List.of(),
+                parentDraft.testCases() == null ? List.of() : parentDraft.testCases(),
+                parentDraft.timeLimitMillis(),
+                parentDraft.memoryLimitKb(),
+                null,
+                model(),
+                estimateTokens(parentDraft.statement() + " " + feedback),
+                estimateTokens(statement),
+                Instant.now(),
+                null,
+                null
+        );
+    }
+
+    private ProblemDraftResponse invalidProblemDraft(Long id, ProblemDraftRequest request, String error, CompletionResult result) {
+        return invalidProblemDraft(id, request.topic() + " practice",
+                request.difficulty() == null || request.difficulty().isBlank() ? "EASY" : request.difficulty(), error, result);
+    }
+
+    private ProblemDraftResponse invalidProblemDraft(Long id, String title, String difficulty, String error, CompletionResult result) {
+        return new ProblemDraftResponse(
+                id,
+                title,
+                difficulty,
                 "",
                 List.of(),
                 "INVALID",
@@ -185,6 +212,29 @@ public class OpenAiCompatibleProvider implements AiProvider {
                 List.of(),
                 1000,
                 262144,
+                null,
+                model(),
+                result.promptTokens(),
+                result.completionTokens(),
+                Instant.now(),
+                null,
+                null
+        );
+    }
+
+    private ProblemDraftResponse parseProblemDraft(Long id, CompletionResult result) throws Exception {
+        JsonNode root = objectMapper.readTree(extractJson(result.content()));
+        return new ProblemDraftResponse(
+                id,
+                text(root, "title"),
+                text(root, "difficulty"),
+                text(root, "statement"),
+                stringArray(root.get("tags")),
+                "VALID",
+                List.of(),
+                testCases(root.get("testCases")),
+                integer(root, "timeLimitMillis"),
+                integer(root, "memoryLimitKb"),
                 null,
                 model(),
                 result.promptTokens(),
@@ -226,6 +276,12 @@ public class OpenAiCompatibleProvider implements AiProvider {
                 + "\n教学目标：<USER_GOAL>" + safeOneLine(request.teachingGoal()) + "</USER_GOAL>";
     }
 
+    private String problemDraftRegeneratePrompt(ProblemDraftResponse parentDraft, String feedback) {
+        return "原始题面：<USER_ORIGINAL>" + safeOneLine(parentDraft.statement()) + "</USER_ORIGINAL>\n"
+                + "改进意见：<USER_FEEDBACK>" + safeOneLine(feedback) + "</USER_FEEDBACK>\n"
+                + "请基于改进意见重新生成一版完整 JSON 草稿，结构与首次生成相同。";
+    }
+
     private String safeOneLine(String value) {
         if (value == null) {
             return "";
@@ -235,7 +291,9 @@ public class OpenAiCompatibleProvider implements AiProvider {
             collapsed = collapsed.substring(0, 500);
         }
         return collapsed.replace("<USER_TOPIC>", "").replace("</USER_TOPIC>", "")
-                .replace("<USER_GOAL>", "").replace("</USER_GOAL>", "");
+                .replace("<USER_GOAL>", "").replace("</USER_GOAL>", "")
+                .replace("<USER_ORIGINAL>", "").replace("</USER_ORIGINAL>", "")
+                .replace("<USER_FEEDBACK>", "").replace("</USER_FEEDBACK>", "");
     }
 
     private Map<String, String> message(String role, String content) {

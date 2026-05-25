@@ -16,6 +16,8 @@ import com.aioj.next.contract.ai.AiChatRequest;
 import com.aioj.next.contract.ai.AiConversationResponse;
 import com.aioj.next.contract.ai.AiUsageResponse;
 import com.aioj.next.contract.ai.ProblemDraftApprovalRequest;
+import com.aioj.next.contract.ai.ProblemDraftRefineRequest;
+import com.aioj.next.contract.ai.ProblemDraftRegenerateRequest;
 import com.aioj.next.contract.ai.ProblemDraftRequest;
 import com.aioj.next.contract.ai.ProblemDraftResponse;
 import com.aioj.next.contract.ai.ProblemDraftRejectRequest;
@@ -170,6 +172,30 @@ public class AiController {
             @RequestParam(required = false) String status
     ) {
         return ApiResponse.ok(problemDraftStore.list(page, pageSize, status));
+    }
+
+    @GetMapping("/admin/problem-drafts/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<ProblemDraftResponse> draft(@PathVariable Long id) {
+        return ApiResponse.ok(problemDraftStore.get(id));
+    }
+
+    @PostMapping("/admin/problem-drafts/{id}/refine")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<ProblemDraftResponse> refineDraft(
+            @PathVariable Long id,
+            @RequestBody @Valid ProblemDraftRefineRequest request
+    ) {
+        return ApiResponse.ok(problemDraftStore.refine(id, SecuritySupport.currentUserId(), request));
+    }
+
+    @PostMapping("/admin/problem-drafts/{id}/regenerate")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<ProblemDraftResponse> regenerateDraft(
+            @PathVariable Long id,
+            @RequestBody @Valid ProblemDraftRegenerateRequest request
+    ) {
+        return ApiResponse.ok(problemDraftStore.regenerate(id, SecuritySupport.currentUserId(), request));
     }
 
     @PostMapping("/admin/problem-drafts/{id}/approve")

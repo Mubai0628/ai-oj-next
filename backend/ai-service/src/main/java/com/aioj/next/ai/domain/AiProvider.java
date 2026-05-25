@@ -9,6 +9,10 @@ public interface AiProvider {
 
     ProblemDraftResponse generateProblemDraft(Long id, ProblemDraftRequest request);
 
+    default ProblemDraftResponse regenerateProblemDraft(Long id, ProblemDraftResponse parentDraft, String feedback) {
+        throw new UnsupportedOperationException("Provider does not support regeneration");
+    }
+
     String providerName();
 
     String model();

@@ -231,6 +231,17 @@ export interface ProblemDraftResponse {
   refineNote?: string | null;
 }
 
+export interface ProblemDraftRefinePayload {
+  title?: string;
+  difficulty?: string;
+  statement?: string;
+  tags?: string[];
+  testCases?: TestCaseDto[];
+  timeLimitMillis?: number;
+  memoryLimitKb?: number;
+  refineNote?: string;
+}
+
 export interface ProblemListParams {
   page?: number;
   pageSize?: number;
@@ -457,6 +468,18 @@ export const api = {
     request<ProblemDraftResponse>('/api/v1/ai/problem-drafts/generate', { method: 'POST', body: JSON.stringify(payload) }),
   problemDrafts: (params: { page?: number; pageSize?: number; status?: string } = {}) =>
     request<PageResponse<ProblemDraftResponse>>(`/api/v1/admin/problem-drafts${queryString({ page: 1, pageSize: 20, ...params })}`),
+  problemDraft: (id: EntityId) =>
+    request<ProblemDraftResponse>(`/api/v1/admin/problem-drafts/${id}`),
+  refineDraft: (id: EntityId, payload: ProblemDraftRefinePayload) =>
+    request<ProblemDraftResponse>(`/api/v1/admin/problem-drafts/${id}/refine`, {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    }),
+  regenerateDraft: (id: EntityId, feedback: string) =>
+    request<ProblemDraftResponse>(`/api/v1/admin/problem-drafts/${id}/regenerate`, {
+      method: 'POST',
+      body: JSON.stringify({ feedback })
+    }),
   approveDraft: (id: EntityId, importProblem = false) =>
     request<ProblemDraftResponse>(`/api/v1/admin/problem-drafts/${id}/approve`, {
       method: 'POST',
