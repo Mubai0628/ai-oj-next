@@ -438,7 +438,19 @@ export const messages = {
       endDate: '结束日期',
       resetFilters: '重置',
       goPractice: '去题库练习',
-      goProblem: '去题目'
+      goProblem: '去题目',
+      view: '查看',
+      viewCodeTitle: '提交代码详情',
+      viewCodeCopy: '复制代码',
+      viewCodeCopied: '代码已复制',
+      viewCodeUnavailable: '本次提交未保存代码',
+      viewLoadFailed: '无法加载提交详情',
+      viewProblemLabel: '题目',
+      viewLanguageLabel: '语言',
+      viewStatusLabel: '状态',
+      viewTimeLabel: '耗时',
+      viewMemoryLabel: '内存',
+      viewJudgeMessage: '评测信息'
     },
     ai: {
       eyebrow: 'AI 导师',
@@ -1161,7 +1173,19 @@ export const messages = {
       endDate: 'End date',
       resetFilters: 'Reset',
       goPractice: 'Practice problems',
-      goProblem: 'Open problem'
+      goProblem: 'Open problem',
+      view: 'View',
+      viewCodeTitle: 'Submission detail',
+      viewCodeCopy: 'Copy code',
+      viewCodeCopied: 'Code copied to clipboard',
+      viewCodeUnavailable: 'No code stored for this submission',
+      viewLoadFailed: 'Unable to load submission detail',
+      viewProblemLabel: 'Problem',
+      viewLanguageLabel: 'Language',
+      viewStatusLabel: 'Status',
+      viewTimeLabel: 'Time',
+      viewMemoryLabel: 'Memory',
+      viewJudgeMessage: 'Judge message'
     },
     ai: {
       eyebrow: 'AI tutor',

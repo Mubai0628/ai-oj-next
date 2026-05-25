@@ -180,6 +180,7 @@ export interface SubmissionResponse {
   problemId: EntityId;
   userId: EntityId;
   language: string;
+  code?: string | null;
   status: SubmissionStatus;
   judgeMessage: string;
   timeMillis?: number;
