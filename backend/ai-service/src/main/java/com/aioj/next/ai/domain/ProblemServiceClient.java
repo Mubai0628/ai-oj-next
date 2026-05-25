@@ -45,7 +45,8 @@ public class ProblemServiceClient {
                 draft.tags() == null ? List.of() : draft.tags(),
                 testCases,
                 limitOrDefault(draft.timeLimitMillis(), 1000),
-                limitOrDefault(draft.memoryLimitKb(), 262144)
+                limitOrDefault(draft.memoryLimitKb(), 262144),
+                null
         );
 
         try {
