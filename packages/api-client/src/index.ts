@@ -547,3 +547,5 @@ export async function streamAi(
     throw error;
   }
 }
+
+export { installErrorReporter, reportApiError } from './reporting';

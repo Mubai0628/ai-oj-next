@@ -23,7 +23,7 @@ import {
 } from '@arco-design/web-vue';
 import '@arco-design/web-vue/dist/arco.css';
 import { i18n, installI18n } from '@aioj/i18n';
-import { setApiErrorMessageResolver } from '@aioj/api-client';
+import { installErrorReporter, setApiErrorMessageResolver } from '@aioj/api-client';
 import App from './App.vue';
 import router from './router';
 import './styles/tokens.css';
@@ -66,5 +66,6 @@ setApiErrorMessageResolver((code, fallback) => {
   const generic = i18n.global.t('errors.unknown');
   return generic !== 'errors.unknown' ? generic : fallback;
 });
+installErrorReporter({ appName: 'web-user' });
 app.use(router);
 app.mount('#app');
