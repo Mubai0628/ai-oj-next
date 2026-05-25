@@ -1483,3 +1483,56 @@ td a {
 .problem-md-editor .md-editor-preview {
   background: #fbfdff;
 }
+
+.auth-overlay {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 32px 16px;
+  background:
+    radial-gradient(circle at top left, rgba(37, 99, 235, 0.10), transparent 38%),
+    linear-gradient(180deg, #f6f9fd 0%, #eef3fb 100%);
+  z-index: 9999;
+}
+
+.auth-overlay-card {
+  width: min(420px, 100%);
+  padding: 32px 28px;
+  border: 1px solid #d8e3f4;
+  border-radius: 20px;
+  background: #ffffff;
+  box-shadow: 0 24px 56px rgba(15, 23, 42, 0.10);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  text-align: center;
+}
+
+.auth-overlay-icon {
+  width: 56px;
+  height: 56px;
+  display: grid;
+  place-items: center;
+  border-radius: 18px;
+  background: #eff6ff;
+  font-size: 26px;
+}
+
+.auth-overlay-card h2 {
+  margin: 0;
+  font-size: 20px;
+  color: #0f172a;
+}
+
+.auth-overlay-card p {
+  margin: 0;
+  color: #475569;
+  line-height: 1.65;
+  font-size: 14px;
+}
+
+.auth-overlay-card .arco-btn {
+  margin-top: 6px;
+}

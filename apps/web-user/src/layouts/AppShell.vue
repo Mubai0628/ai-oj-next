@@ -1,29 +1,39 @@
 <template>
   <main class="student-layout">
-    <AppSidebar
-      :items="navItems"
-      :subtitle="t('common.userProduct')"
-      :nav-label="t('shell.userNavLabel')"
-    />
-
-    <section class="app-workspace">
-      <AppTopActions
-        :user="topUser"
-        :logging-out="loggingOut"
-        :search-label="t('shell.search')"
-        :notification-label="t('shell.notifications')"
-        :theme-label="t('shell.theme')"
-        @logout="logout"
+    <template v-if="sessionValid">
+      <AppSidebar
+        :items="navItems"
+        :subtitle="t('common.userProduct')"
+        :nav-label="t('shell.userNavLabel')"
       />
-      <router-view />
-    </section>
+
+      <section class="app-workspace">
+        <AppTopActions
+          :user="topUser"
+          :logging-out="loggingOut"
+          :search-label="t('shell.search')"
+          :notification-label="t('shell.notifications')"
+          :theme-label="t('shell.theme')"
+          @logout="logout"
+        />
+        <router-view />
+      </section>
+    </template>
+    <div v-else class="auth-overlay" role="alert" aria-live="polite">
+      <article class="auth-overlay-card">
+        <span class="auth-overlay-icon">🔒</span>
+        <h2>{{ t('auth.sessionExpiredTitle') }}</h2>
+        <p>{{ t('auth.sessionExpiredCopy') }}</p>
+        <a-button type="primary" long @click="goLogin">{{ t('auth.signInAgain') }}</a-button>
+      </article>
+    </div>
   </main>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import AppSidebar from '@/components/layout/AppSidebar.vue';
 import AppTopActions from '@/components/layout/AppTopActions.vue';
 import { useAuthStore } from '@/stores/auth';
@@ -36,8 +46,21 @@ interface SidebarItem {
 
 const auth = useAuthStore();
 const { t } = useI18n();
+const route = useRoute();
 const router = useRouter();
 const loggingOut = ref(false);
+
+const sessionValid = computed(() => {
+  void auth.authTick;
+  return auth.isAuthenticated && Boolean(auth.profile);
+});
+
+watch(sessionValid, (good) => {
+  if (good) return;
+  if (route.name === 'login' || route.name === 'register') return;
+  router.replace({ name: 'login', query: { expired: '1', redirect: route.fullPath } })
+    .catch(() => {});
+}, { immediate: false });
 
 const navItems = computed<SidebarItem[]>(() => [
   { to: '/', label: t('nav.home'), icon: 'H' },
@@ -61,5 +84,10 @@ async function logout() {
   } finally {
     loggingOut.value = false;
   }
+}
+
+function goLogin() {
+  router.replace({ name: 'login', query: { redirect: route.fullPath } })
+    .catch(() => {});
 }
 </script>
