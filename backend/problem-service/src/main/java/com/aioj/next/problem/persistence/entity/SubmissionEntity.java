@@ -19,6 +19,10 @@ public class SubmissionEntity {
     private String judgeMessage;
     private Long timeMillis;
     private Long memoryKb;
+    private String stdoutExcerpt;
+    private String stderrExcerpt;
+    private Integer exitStatus;
+    private Long runTimeMillis;
     private Integer retryCount;
     private String idempotencyKey;
     private Instant createdAt;
@@ -95,6 +99,38 @@ public class SubmissionEntity {
 
     public void setMemoryKb(Long memoryKb) {
         this.memoryKb = memoryKb;
+    }
+
+    public String getStdoutExcerpt() {
+        return stdoutExcerpt;
+    }
+
+    public void setStdoutExcerpt(String stdoutExcerpt) {
+        this.stdoutExcerpt = stdoutExcerpt;
+    }
+
+    public String getStderrExcerpt() {
+        return stderrExcerpt;
+    }
+
+    public void setStderrExcerpt(String stderrExcerpt) {
+        this.stderrExcerpt = stderrExcerpt;
+    }
+
+    public Integer getExitStatus() {
+        return exitStatus;
+    }
+
+    public void setExitStatus(Integer exitStatus) {
+        this.exitStatus = exitStatus;
+    }
+
+    public Long getRunTimeMillis() {
+        return runTimeMillis;
+    }
+
+    public void setRunTimeMillis(Long runTimeMillis) {
+        this.runTimeMillis = runTimeMillis;
     }
 
     public Integer getRetryCount() {

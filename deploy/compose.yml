@@ -160,6 +160,7 @@ services:
       NACOS_ENABLED: ${NACOS_ENABLED:-true}
       NACOS_SERVER_ADDR: ${NACOS_SERVER_ADDR:-nacos:8848}
       JWT_HMAC_SECRET: ${JWT_HMAC_SECRET:-replace-with-at-least-32-bytes-dev-secret}
+      AIOJ_INTERNAL_API_TOKEN: ${AIOJ_INTERNAL_API_TOKEN:-}
     depends_on:
       mysql:
         condition: service_healthy
@@ -208,18 +209,56 @@ services:
         SERVICE_MODULE: judge-worker
     environment:
       SERVER_PORT: 8203
+      MYSQL_URL: ${MYSQL_URL:-jdbc:mysql://mysql:3306/${MYSQL_DATABASE:-ai_oj_next}?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai}
+      MYSQL_USER: ${MYSQL_USER:-aioj}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-change-me}
       RABBITMQ_HOST: rabbitmq
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-aioj}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-change-rabbit-me}
       NACOS_ENABLED: ${NACOS_ENABLED:-true}
       NACOS_SERVER_ADDR: ${NACOS_SERVER_ADDR:-nacos:8848}
+      AIOJ_JUDGE_CACHE_ROOT: /aioj/cases
       SANDBOX_ENDPOINT: ${SANDBOX_ENDPOINT:-http://sandbox:8090/execute}
       SANDBOX_TOKEN: ${SANDBOX_TOKEN:-}
+      AIOJ_INTERNAL_API_TOKEN: ${AIOJ_INTERNAL_API_TOKEN:-}
+      PROBLEM_SERVICE_BASE_URL: ${PROBLEM_SERVICE_BASE_URL:-http://problem-service:8202}
+    volumes:
+      - testcase-cache:/aioj/cases
+    networks:
+      - default
+      - aioj-judge
     depends_on:
       rabbitmq:
         condition: service_healthy
       nacos:
         condition: service_healthy
+      sandbox:
+        condition: service_healthy
+
+  sandbox:
+    profiles: ["judge"]
+    build:
+      context: sandbox
+    privileged: true
+    shm_size: 256m
+    environment:
+      ES_HTTP_ADDR: ":8090"
+      ES_AUTH_TOKEN: ${SANDBOX_TOKEN:-}
+      ES_OUTPUT_LIMIT: "268435456"
+      ES_COPY_OUT_LIMIT: "67108864"
+      ES_FILE_TIMEOUT: "30m"
+    ports:
+      - "127.0.0.1:8090:8090"
+    volumes:
+      - testcase-cache:/aioj/cases:ro
+      - sandbox-tmp:/tmp
+    networks:
+      - aioj-judge
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:8090/version"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
 
   web-user:
     profiles: ["app"]
@@ -243,3 +282,10 @@ services:
     ports:
       - "5174:80"
 
+volumes:
+  testcase-cache:
+  sandbox-tmp:
+
+networks:
+  aioj-judge:
+    driver: bridge

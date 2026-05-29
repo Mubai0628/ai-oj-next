@@ -1,6 +1,7 @@
 package com.aioj.next.problem.config;
 
 import com.aioj.next.common.security.BearerTokenAuthenticationFilter;
+import com.aioj.next.common.security.InternalApiTokenFilter;
 import com.aioj.next.common.security.JwtProperties;
 import com.aioj.next.common.security.JwtTokenService;
 import com.aioj.next.common.web.TraceIdFilter;
@@ -26,15 +27,18 @@ public class SecurityConfig {
     }
 
     @Bean
-    SecurityFilterChain securityFilterChain(HttpSecurity http, JwtTokenService jwtTokenService) throws Exception {
+    SecurityFilterChain securityFilterChain(HttpSecurity http, JwtTokenService jwtTokenService,
+                                            InternalApiProperties internalApiProperties) throws Exception {
         return http
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/api/v1/internal/**").hasRole("INTERNAL")
                         .requestMatchers("/problems/**", "/actuator/health", "/v3/api-docs/**", "/swagger-ui/**").permitAll()
                         .anyRequest().authenticated())
+                .addFilterBefore(new InternalApiTokenFilter(internalApiProperties.getApiToken()),
+                        UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(new BearerTokenAuthenticationFilter(jwtTokenService), UsernamePasswordAuthenticationFilter.class)
                 .build();
     }
 }
-

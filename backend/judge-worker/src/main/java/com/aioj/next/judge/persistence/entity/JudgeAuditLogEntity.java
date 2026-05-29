@@ -16,6 +16,8 @@ public class JudgeAuditLogEntity {
     private SubmissionStatus toStatus;
     private String workerId;
     private String message;
+    private String sandboxRunId;
+    private Integer signalValue;
     private Instant createdAt;
 
     public Long getId() {
@@ -64,6 +66,22 @@ public class JudgeAuditLogEntity {
 
     public void setMessage(String message) {
         this.message = message;
+    }
+
+    public String getSandboxRunId() {
+        return sandboxRunId;
+    }
+
+    public void setSandboxRunId(String sandboxRunId) {
+        this.sandboxRunId = sandboxRunId;
+    }
+
+    public Integer getSignalValue() {
+        return signalValue;
+    }
+
+    public void setSignalValue(Integer signalValue) {
+        this.signalValue = signalValue;
     }
 
     public Instant getCreatedAt() {

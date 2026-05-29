@@ -15,6 +15,14 @@ public record SubmissionResponse(
         String judgeMessage,
         Long timeMillis,
         Long memoryKb,
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        String stdoutExcerpt,
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        String stderrExcerpt,
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        Integer exitStatus,
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        Long runTimeMillis,
         Instant createdAt,
         Instant judgedAt
 ) {

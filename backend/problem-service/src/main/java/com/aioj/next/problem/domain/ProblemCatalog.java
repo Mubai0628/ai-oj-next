@@ -24,6 +24,7 @@ import org.springframework.util.StringUtils;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class ProblemCatalog {
@@ -62,6 +63,10 @@ public class ProblemCatalog {
         return problemMapper.selectCount(baseProblemQuery().eq(ProblemEntity::getId, id)) > 0;
     }
 
+    public Optional<ProblemEntity> findActive(Long id) {
+        return Optional.ofNullable(problemMapper.selectOne(baseProblemQuery().eq(ProblemEntity::getId, id)));
+    }
+
     @Transactional
     public ProblemResponse create(ProblemCreateRequest request, boolean aiGenerated) {
         Instant now = Instant.now();
@@ -98,11 +103,8 @@ public class ProblemCatalog {
     }
 
     private ProblemEntity requireActiveProblem(Long id) {
-        ProblemEntity problem = problemMapper.selectOne(baseProblemQuery().eq(ProblemEntity::getId, id));
-        if (problem == null) {
-            throw new DomainException(ErrorCode.NOT_FOUND, "Problem not found");
-        }
-        return problem;
+        return findActive(id)
+                .orElseThrow(() -> new DomainException(ErrorCode.NOT_FOUND, "Problem not found"));
     }
 
     private LambdaQueryWrapper<ProblemEntity> baseProblemQuery() {

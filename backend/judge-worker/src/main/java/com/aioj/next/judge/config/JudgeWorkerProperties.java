@@ -12,6 +12,8 @@ public class JudgeWorkerProperties {
     private Duration sandboxTimeout = Duration.ofSeconds(10);
     private List<String> languageWhitelist = List.of("java", "cpp", "python");
     private String cacheRoot = System.getProperty("user.home") + "/.ai-oj-next/judge-cache";
+    private String problemServiceBaseUrl = "http://problem-service:8202";
+    private String internalApiToken = "";
 
     public String getSandboxEndpoint() {
         return sandboxEndpoint;
@@ -51,5 +53,21 @@ public class JudgeWorkerProperties {
 
     public void setCacheRoot(String cacheRoot) {
         this.cacheRoot = cacheRoot;
+    }
+
+    public String getProblemServiceBaseUrl() {
+        return problemServiceBaseUrl;
+    }
+
+    public void setProblemServiceBaseUrl(String problemServiceBaseUrl) {
+        this.problemServiceBaseUrl = problemServiceBaseUrl;
+    }
+
+    public String getInternalApiToken() {
+        return internalApiToken;
+    }
+
+    public void setInternalApiToken(String internalApiToken) {
+        this.internalApiToken = internalApiToken;
     }
 }

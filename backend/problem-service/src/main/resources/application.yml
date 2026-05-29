@@ -40,6 +40,8 @@ spring:
         dashboard: ${SENTINEL_DASHBOARD:127.0.0.1:8858}
 
 aioj:
+  internal:
+    api-token: ${AIOJ_INTERNAL_API_TOKEN:}
   testcase:
     storage-root: ${AIOJ_TESTCASE_STORAGE_ROOT:${user.home}/.ai-oj-next/testcases}
     max-package-bytes: ${AIOJ_TESTCASE_MAX_PACKAGE_BYTES:134217728}

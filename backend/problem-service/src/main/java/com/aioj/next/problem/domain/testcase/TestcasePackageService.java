@@ -197,6 +197,14 @@ public class TestcasePackageService {
                 .toList();
     }
 
+    public TestcasePackageEntity findReadyOrThrow(Long packageId) {
+        TestcasePackageEntity testcasePackage = requirePackage(packageId);
+        if (testcasePackage.getStatus() != TestcasePackageStatus.READY) {
+            throw new DomainException(ErrorCode.BAD_REQUEST, "Only READY testcase packages can be downloaded");
+        }
+        return testcasePackage;
+    }
+
     @Transactional
     public TestcasePackageResponse activate(Long problemId, Long packageId) {
         requireProblem(problemId);

@@ -1,7 +1,6 @@
 package com.aioj.next.judge.domain;
 
 import com.aioj.next.contract.problem.TestcasePackageStatus;
-import com.aioj.next.judge.config.JudgeTestcaseProperties;
 import com.aioj.next.judge.config.JudgeWorkerProperties;
 import com.aioj.next.judge.persistence.entity.TestcasePackageCaseEntity;
 import com.aioj.next.judge.persistence.entity.TestcasePackageEntity;
@@ -38,16 +37,16 @@ public class TestcasePackageCache {
 
     private final TestcasePackageMapper packageMapper;
     private final TestcasePackageCaseMapper caseMapper;
-    private final Path storageRoot;
+    private final TestcaseBlobClient blobClient;
     private final Path cacheRoot;
 
     public TestcasePackageCache(TestcasePackageMapper packageMapper,
                                 TestcasePackageCaseMapper caseMapper,
-                                JudgeTestcaseProperties testcaseProperties,
-                                JudgeWorkerProperties workerProperties) {
+                                JudgeWorkerProperties workerProperties,
+                                TestcaseBlobClient blobClient) {
         this.packageMapper = packageMapper;
         this.caseMapper = caseMapper;
-        this.storageRoot = Path.of(testcaseProperties.getStorageRoot()).toAbsolutePath().normalize();
+        this.blobClient = blobClient;
         this.cacheRoot = Path.of(workerProperties.getCacheRoot()).toAbsolutePath().normalize();
     }
 
@@ -60,8 +59,7 @@ public class TestcasePackageCache {
             throw new TestcasePackageUnavailableException("unsupported testcase storage provider: "
                     + testcasePackage.getStorageProvider());
         }
-        Path zipPath = resolveStorageKey(testcasePackage.getStorageKey());
-        verifyZipFile(testcasePackage, zipPath);
+        Path zipPath = ensureBlobCached(testcasePackage);
         Path cachePath = cachePath(testcasePackage);
         if (!Files.isRegularFile(cachePath.resolve(READY_MARKER))) {
             extractToCache(zipPath, cachePath, testcasePackage);
@@ -78,6 +76,34 @@ public class TestcasePackageCache {
                 .orderByDesc(TestcasePackageEntity::getActivatedAt)
                 .orderByDesc(TestcasePackageEntity::getId)
                 .last("LIMIT 1"));
+    }
+
+    private Path ensureBlobCached(TestcasePackageEntity testcasePackage) {
+        Path blobPath = blobPath(testcasePackage);
+        if (isMatchingZip(testcasePackage, blobPath)) {
+            return blobPath;
+        }
+        TestcaseBlobClient.BlobHeaders headers;
+        try {
+            headers = blobClient.downloadTo(testcasePackage.getId(), blobPath);
+        } catch (RuntimeException ex) {
+            throw new TestcasePackageUnavailableException("failed to fetch testcase package blob", ex);
+        }
+        if (headers.sha256() != null && !headers.sha256().isBlank()
+                && !headers.sha256().equalsIgnoreCase(testcasePackage.getSha256())) {
+            throw new TestcasePackageUnavailableException("downloaded testcase package SHA-256 header does not match metadata");
+        }
+        verifyZipFile(testcasePackage, blobPath);
+        return blobPath;
+    }
+
+    private boolean isMatchingZip(TestcasePackageEntity testcasePackage, Path zipPath) {
+        try {
+            verifyZipFile(testcasePackage, zipPath);
+            return true;
+        } catch (TestcasePackageUnavailableException ex) {
+            return false;
+        }
     }
 
     private void verifyZipFile(TestcasePackageEntity testcasePackage, Path zipPath) {
@@ -167,9 +193,9 @@ public class TestcasePackageCache {
                 Boolean.TRUE.equals(entity.getSample()), entity.getScore(), entity.getSortOrder());
     }
 
-    private Path resolveStorageKey(String storageKey) {
-        Path path = storageRoot.resolve(storageKey).toAbsolutePath().normalize();
-        ensureUnder(storageRoot, path);
+    private Path blobPath(TestcasePackageEntity testcasePackage) {
+        Path path = cacheRoot.resolve("blobs").resolve(testcasePackage.getId() + ".zip").toAbsolutePath().normalize();
+        ensureUnder(cacheRoot, path);
         return path;
     }
 

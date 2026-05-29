@@ -11,6 +11,7 @@ import com.aioj.next.contract.submission.SubmissionCreateRequest;
 import com.aioj.next.contract.submission.SubmissionResponse;
 import com.aioj.next.contract.submission.SubmissionStatus;
 import com.aioj.next.problem.config.JudgeQueueConfig;
+import com.aioj.next.problem.persistence.entity.ProblemEntity;
 import com.aioj.next.problem.persistence.entity.SubmissionEntity;
 import com.aioj.next.problem.persistence.mapper.SubmissionMapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -49,9 +50,8 @@ public class SubmissionService {
         if (!SUPPORTED_LANGUAGES.contains(language)) {
             throw new DomainException(ErrorCode.BAD_REQUEST, "Unsupported language: " + request.language());
         }
-        if (!problemCatalog.existsActive(request.problemId())) {
-            throw new DomainException(ErrorCode.NOT_FOUND, "Problem not found");
-        }
+        ProblemEntity problem = problemCatalog.findActive(request.problemId())
+                .orElseThrow(() -> new DomainException(ErrorCode.NOT_FOUND, "Problem not found"));
 
         Long userId = SecuritySupport.currentUserId();
         Instant now = Instant.now();
@@ -67,7 +67,9 @@ public class SubmissionService {
         submission.setUpdatedAt(now);
         submissionMapper.insert(submission);
 
-        publishAfterCommit(new JudgeTaskMessage(submission.getId(), request.problemId(), userId, language, TraceIds.current()));
+        Long memoryLimitKb = problem.getMemoryLimitKb() == null ? null : problem.getMemoryLimitKb().longValue();
+        publishAfterCommit(new JudgeTaskMessage(submission.getId(), request.problemId(), userId, language,
+                TraceIds.current(), problem.getTimeLimitMillis(), memoryLimitKb));
         return toResponse(submission, false);
     }
 
@@ -126,7 +128,12 @@ public class SubmissionService {
         return new SubmissionResponse(submission.getId(), submission.getProblemId(), submission.getUserId(),
                 submission.getLanguage(), includeCode ? submission.getCode() : null,
                 submission.getStatus(), submission.getJudgeMessage(),
-                submission.getTimeMillis(), submission.getMemoryKb(), submission.getCreatedAt(), submission.getJudgedAt());
+                submission.getTimeMillis(), submission.getMemoryKb(),
+                includeCode ? submission.getStdoutExcerpt() : null,
+                includeCode ? submission.getStderrExcerpt() : null,
+                includeCode ? submission.getExitStatus() : null,
+                includeCode ? submission.getRunTimeMillis() : null,
+                submission.getCreatedAt(), submission.getJudgedAt());
     }
 
     private void publishAfterCommit(JudgeTaskMessage message) {

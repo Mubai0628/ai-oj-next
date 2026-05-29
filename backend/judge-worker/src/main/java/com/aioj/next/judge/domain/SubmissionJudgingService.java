@@ -23,6 +23,7 @@ import java.util.Objects;
 public class SubmissionJudgingService {
     private static final Logger log = LoggerFactory.getLogger(SubmissionJudgingService.class);
     private static final int MESSAGE_LIMIT = 512;
+    private static final int OUTPUT_MAX_LENGTH = 8 * 1024;
 
     private final SubmissionMapper submissionMapper;
     private final JudgeAuditLogMapper auditLogMapper;
@@ -72,11 +73,17 @@ public class SubmissionJudgingService {
         update.setMemoryKb(result.memoryKb());
         update.setJudgedAt(judgedAt);
         update.setUpdatedAt(judgedAt);
+        update.setStdoutExcerpt(truncateOutput(result.stdout()));
+        update.setStderrExcerpt(truncateOutput(result.stderr()));
+        update.setExitStatus(result.exitStatus());
+        update.setRunTimeMillis(result.runTimeMillis());
         int updated = submissionMapper.update(update, new LambdaUpdateWrapper<SubmissionEntity>()
                 .eq(SubmissionEntity::getId, task.submissionId())
                 .eq(SubmissionEntity::getStatus, SubmissionStatus.RUNNING));
         if (updated == 1) {
-            audit(task.submissionId(), SubmissionStatus.RUNNING, status, result.message());
+            Integer signalValue = status == SubmissionStatus.RUNTIME_ERROR
+                    && "Signalled".equals(result.message()) ? result.exitStatus() : null;
+            audit(task.submissionId(), SubmissionStatus.RUNNING, status, result.message(), signalValue, null);
             return true;
         }
         log.info("submission={} terminal update skipped because it is no longer RUNNING", task.submissionId());
@@ -111,6 +118,11 @@ public class SubmissionJudgingService {
     }
 
     private void audit(Long submissionId, SubmissionStatus fromStatus, SubmissionStatus toStatus, String message) {
+        audit(submissionId, fromStatus, toStatus, message, null, null);
+    }
+
+    private void audit(Long submissionId, SubmissionStatus fromStatus, SubmissionStatus toStatus, String message,
+                       Integer signalValue, String sandboxRunId) {
         try {
             JudgeAuditLogEntity audit = new JudgeAuditLogEntity();
             audit.setSubmissionId(submissionId);
@@ -118,6 +130,8 @@ public class SubmissionJudgingService {
             audit.setToStatus(toStatus);
             audit.setWorkerId(workerId);
             audit.setMessage(truncate(message));
+            audit.setSignalValue(signalValue);
+            audit.setSandboxRunId(sandboxRunId);
             audit.setCreatedAt(Instant.now());
             auditLogMapper.insert(audit);
         } catch (RuntimeException ex) {
@@ -130,6 +144,13 @@ public class SubmissionJudgingService {
             return message;
         }
         return message.substring(0, MESSAGE_LIMIT);
+    }
+
+    private String truncateOutput(String value) {
+        if (value == null || value.length() <= OUTPUT_MAX_LENGTH) {
+            return value;
+        }
+        return value.substring(0, OUTPUT_MAX_LENGTH) + "\n...[truncated]";
     }
 
     private boolean matchesTask(SubmissionEntity submission, JudgeTaskMessage task) {

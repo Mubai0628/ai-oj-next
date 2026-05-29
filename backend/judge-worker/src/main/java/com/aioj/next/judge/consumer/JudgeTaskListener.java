@@ -1,7 +1,6 @@
 package com.aioj.next.judge.consumer;
 
 import com.aioj.next.contract.judge.JudgeTaskMessage;
-import com.aioj.next.contract.submission.SubmissionStatus;
 import com.aioj.next.judge.config.JudgeQueueConfig;
 import com.aioj.next.judge.domain.JudgeResult;
 import com.aioj.next.judge.domain.NonRetryableJudgeTaskException;
@@ -15,8 +14,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
-
-import java.time.Instant;
 
 @Component
 public class JudgeTaskListener {
@@ -49,8 +46,7 @@ public class JudgeTaskListener {
             } catch (TestcasePackageUnavailableException ex) {
                 String messageText = "Testcase package unavailable: " + ex.getMessage();
                 log.warn("submission={} problem={} {}", task.submissionId(), task.problemId(), messageText);
-                judgingService.finish(task, new JudgeResult(SubmissionStatus.SYSTEM_ERROR, messageText,
-                        null, null, Instant.now()));
+                judgingService.finish(task, JudgeResult.systemError(messageText));
                 channel.basicAck(deliveryTag, false);
                 return;
             }
