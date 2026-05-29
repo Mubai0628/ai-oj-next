@@ -3,7 +3,7 @@
 > 这是当前项目状态的**活文档**。每次有功能落地、commit 推送、修 bug，**对应条目即时更新**。
 > 新会话/新负责人接手时，先读 `CLAUDE.md`（约定/红线），再读本文件（现状）。
 >
-> **快照时间**：2026-05-23 · **基线 commit**：`7012b57 refine admin problem editor tabs` · **分支**：`master`
+> **快照时间**：2026-05-29 · **基线 commit**：`8b38a13 introduce typed ApiError and form-level field error binding` · **分支**：`master`
 
 ---
 
@@ -52,6 +52,7 @@
 - [x] `CLAUDE.md` + `graphify-out/`（gitignore）+ `.gitignore` 收敛日志/产物
 - [x] 本地 Docker Compose: MySQL 8 / Redis 7 / RabbitMQ / Nacos / Sentinel 联调通过
 - [x] 后端 `mvn clean package` + 前端 `npm run build` 多轮验证通过
+- [x] 项目协作模式切换为 Codex 直接负责；`docs/codex-exchange/` 保留为历史归档
 
 ## 3. 进行中 / 部分完成
 
@@ -61,12 +62,13 @@
 | `packages/ui` 复用层 | 🟡 偏薄 | 目前只 `OjStat` + `OjToolbar`；`PageHeader/EmptyState/StatusChip/DifficultyChip` 还分散在 user/admin |
 | 管理端样式统一 | 🟡 推进中 | 用户/角色/AI 草稿/题库的筛选、表格密度、空状态、移动端体验仍可继续收敛 |
 | `api-client/src/index.ts` 单文件 509 行 | 🟡 待拆 | types / http / endpoints 应分离 |
+| 真实隔离沙箱 | 🟡 Phase 4 done | go-judge compose、testcase zip internal HTTP 分发、DTO/状态扩展、真实 `SandboxClient`、V7 runtime 字段已完成；Phase 5 剩 multi-language runtime image + 端到端联调 |
 
 ## 4. 待办（重要未完成）
 
 | 项 | 优先级 | 风险 |
 |---|---|---|
-| **真实隔离沙箱** | 🔴 P0 | judge-worker 调 `SANDBOX_ENDPOINT`，但沙箱实体（cgroup/namespace/seccomp/语言运行时限制/输出限制/资源审计）未实现 |
+| **多语言沙箱镜像 + 端到端联调** | 🔴 P0 | 真实 `SandboxClient` 已接 go-judge `/run`；仍需构建包含 Python/C++/Java runtime 的生产镜像，并跑提交→评测→详情展示全链路 |
 | **大测试点压测** | 🟠 P1 | 50MB/100MB zip、断点重试、非法路径、hash 校验、worker 缓存、缺包/坏包 `SYSTEM_ERROR` 审计链路需要全链路压一遍 |
 | **Ubuntu 24 生产部署验收** | 🟠 P1 | Docker/Nginx/secrets/Nacos & Sentinel 生产鉴权/迁移顺序/多实例启动顺序需要专项验证 |
 | 后端单测 | 🟡 P2 | `backend/**/src/test/` 为空。关键 service（JudgeTaskListener / TokenService / TestcasePackageValidator / UserAccountService）应先补 |
@@ -81,6 +83,15 @@
 - **Flyway 历史不可改**：只能新增 `V{N+1}__*.sql`。
 - **判题永远过 RabbitMQ**：禁止 HTTP 直连 judge-worker。
 - **AI 出题永远走 draft 流**：禁止直接调 problem-service 插题。
+- **Flyway 半成功状态**：MySQL DDL 不在事务里，一条 V*.sql 多 DDL 时
+  前面成功后面失败会留下"半完成 schema + flyway success=0"。处置 SOP
+  见 docs/deployment.md «Flyway 迁移失败的恢复 SOP»。
+- **Arco a-alert `:content` prop 渲染异常**：self-closing `<a-alert ... />`
+  + `:content="X"` 在 Arco 2.58 + Vue 3.5 下会渲染「红框无文字」。规范见
+  CLAUDE.md §5.8；全仓在 2026-05-25 已统一为 default slot 写法。
+- **判题主机 privileged sandbox**：判题主机必须 `privileged: true` 跑
+  sandbox container，不应与其他业务混部，主机层加固按 docs/deployment.md
+  §3.4。
 
 ## 6. 关键文件锚点
 
@@ -91,7 +102,13 @@
 | 管理端路由 + 全局会话过期监听 | `apps/web-admin/src/router/index.ts` |
 | 判题消费者 | `backend/judge-worker/src/main/java/.../consumer/JudgeTaskListener.java` |
 | 沙箱客户端 | `backend/judge-worker/src/main/java/.../domain/SandboxClient.java` |
+| 输出比较器 | `backend/judge-worker/src/main/java/.../domain/DefaultOutputComparator.java` |
+| 测试包 Blob 客户端 | `backend/judge-worker/src/main/java/.../domain/TestcaseBlobClient.java` |
+| 沙箱服务 | `deploy/sandbox/Dockerfile` + `deploy/compose.yml#sandbox` |
+| 沙箱 runtime 字段迁移 | `backend/api-contract/src/main/resources/db/migration/V7__sandbox_runtime_fields.sql` |
 | 测试包 Service | `backend/problem-service/src/main/java/.../domain/testcase/TestcasePackageService.java` |
+| 测试包内部下载端点 | `backend/problem-service/src/main/java/.../controller/InternalTestcaseController.java` |
+| 内部调用鉴权 Filter | `backend/common-lib/src/main/java/.../security/InternalApiTokenFilter.java` |
 | AI Provider | `backend/ai-service/src/main/java/.../domain/AiProvider.java` + `OpenAiCompatibleProvider.java` |
 
 ## 7. 近期 commit（HEAD 倒序）

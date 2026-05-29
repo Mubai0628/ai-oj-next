@@ -1,7 +1,7 @@
 # AI-OJ Next — Project Guide
 
 > 校园教学型 AI 在线评测系统 v2。本文件是项目唯一权威的"快速上手 + 约定 + 红线"指南。
-> 每个 Claude / 协作者会话启动时都应先读完本文件。
+> 每个 Codex / 协作者会话启动时都应先读完本文件。
 
 ## 1. Project Identity
 
@@ -133,6 +133,19 @@ graphify-out/             知识图谱（.gitignore，本地用 graphify update 
 - 跨页面状态用 Pinia store（`stores/auth.ts` 是范例）。
 - 共享 UI 组件下沉到 `@aioj/ui`，**不**在 user/admin 各自重写一遍。
 - 全局样式分层：`tokens.css`（设计令牌） → `global.css`（基础） → `layout.css`（布局） → 组件 scoped 样式。
+- `<a-alert>` 必须用 **default slot** 渲染文本（`<a-alert>{{ message }}</a-alert>`），
+  **不要**用 `:content="..."` prop 写自闭合 `<a-alert ... />`——Arco 2.58 + Vue 3.5
+  组合下 self-closing + `:content` 会出现「红框无文字」渲染异常。`<a-popconfirm>`
+  / `<a-tooltip>` 的 `:content` 不受影响，保持原写法。
+- **响应式必选**：所有新增/调整的样式必须同时考虑桌面（≥1280px）、
+  平板（768–1280px）、移动（<768px）三档断点。规范：
+  - 用 `grid-template-columns: repeat(auto-fit, minmax(<min>, 1fr))`
+    让网格自适应；除非必要不写固定列数
+  - 用 `clamp(min, fluid, max)` 做 width / padding / font-size 弹性
+    值，避免在大屏上留白或小屏溢出
+  - drawer / modal 等浮层在 mobile (<768px) 必须 ≥90% 视口宽
+  - 不要给容器写未带 media query 的 `max-width: <固定px>`，除非已经
+    在所有目标断点下验证过不会留白
 - i18n 文案放 `@aioj/i18n/src/messages.ts`，禁止硬编码中文/英文到组件。
 
 ## 6. Common Tasks
@@ -197,6 +210,7 @@ graphify explain "TestcasePackageService"   # 解释一个概念
 | AI 出题直接入库 | 走 ProblemDraft 审核流 |
 | 在 user/admin 重复实现同一个组件 | 下沉到 `@aioj/ui` |
 | `import.meta.env.VITE_*` 之外读环境变量 | 走 `apiBaseUrl()` |
+| 直接在生产 DB 手动 ALTER 表 | 永远新建 V{N+1}.sql；手动改完容易被下次 migration 撞上 Duplicate 报错变成 Flyway failed 记录 |
 | 把 16+ 位 ID 当 number 解析 | 用 `preserveLargeIntegerIds` |
 
 ## 8. 项目核心抽象（God Nodes，来自 graphify 分析）
@@ -215,13 +229,40 @@ graphify explain "TestcasePackageService"   # 解释一个概念
 - `graphify path "JudgeTaskListener" "TestcasePackageEntity"`
 - `graphify explain "<某个类>"`
 
-## 9. Companion Docs（每个新 Claude 会话也要看一眼）
+## 9. Companion Docs（每个新 Codex 会话也要看一眼）
 
 | 文件 | 内容 | 何时读 |
 |---|---|---|
 | `docs/HANDOVER.md` | 当前真实进度快照（已完成 / 待补 / 风险） | **每次会话启动必读**——是项目"现状"基准 |
 | `docs/ROADMAP.md` | 阶段化路线图（含用户组等扩展规划） | 接到新任务时核对优先级 |
 | `docs/DEVELOPMENT.md` | 完整开发习惯（Git、UI、本地环境等细节） | 提交、改 UI、改环境前 |
-| `docs/codex-prompts/` | 历史 + 待执行的 Codex 提示词（`.txt`） | 看历次改动的设计意图 |
+| `docs/codex-prompts/` | 历史 Codex 提示词（`.txt`） | 看历次改动的设计意图 |
 
-工作流：本会话设计 → 我输出 `.txt` 提示词 → 用户转交 Codex 执行 → 用户回传结果。HANDOVER 和 ROADMAP 是**活文档**，每次有功能落地或推进，更新对应条目。
+### 9.1 Codex 直接负责（推荐工作流）
+
+> 自 2026-05-29 起，项目默认由 Codex 直接负责需求澄清、方案设计、
+> 代码实现、验证和汇报。`docs/codex-exchange/` 保留为历史归档，不再
+> 作为新任务的必经流程。
+
+**Codex 每次新会话启动时应该**：
+1. **读 `~/.claude/memory/lessons/INDEX.md`** —— 跨项目教训库，看当前任务关键词是否命中已有 lesson
+2. 读 `CLAUDE.md`（本文件）
+3. 读 `docs/HANDOVER.md`
+4. 读 `docs/PROJECT_HANDOFF.md` 和 `docs/ROADMAP.md`，确认当前阶段与优先级
+5. 如需追溯历史任务，再读 `docs/codex-exchange/README.md` 与对应 outbox
+
+**已命中的本项目相关 lessons**（按出现顺序，从全局库引用，不在此处重复内容）：
+- 视觉/CSS 布局类任务 → `~/.claude/memory/lessons/debugging/visual-css-bugs.md`
+  （案例：ProblemEditorDrawer 三 tab 内容不铺满，三轮才修对）
+
+**沉淀新教训**：本项目内任何"多轮失败 + 用户复盘"场景结束时，调用
+skill `/distill-lesson` 把通用部分写入全局库，项目特定部分（具体文件
+路径、i18n key 等）才写到本文件。
+
+**历史文件交换工作流（归档）**：`docs/codex-exchange/inbox/` 与
+`docs/codex-exchange/outbox/` 仍保留，便于追溯 2026-05 期间 Claude 设计、
+Codex 执行的阶段化任务；新任务不再要求创建 inbox/outbox。
+
+**旧复制粘贴工作流（废止）**：本会话设计 → 输出 `.txt` 提示词 → 用户转交
+Codex 执行 → 用户回传结果。后续不再采用。HANDOVER 和 ROADMAP 是**活文档**，
+每次有功能落地或推进，更新对应条目。
