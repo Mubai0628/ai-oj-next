@@ -53,6 +53,13 @@
       </div>
     </section>
 
+    <section v-else-if="activeTab === 'submissions'" class="problem-tab-panel">
+      <ProblemSubmissionsPanel
+        :problem-id="problem.id"
+        @view="$emit('view-submission', $event)"
+      />
+    </section>
+
     <section v-else class="problem-tab-panel">
       <EmptyState :title="t('problems.relatedEmptyTitle')" :description="t('problems.relatedEmptyDescription')" />
     </section>
@@ -66,8 +73,10 @@ import 'md-editor-v3/lib/preview.css';
 import DifficultyChip from '@/components/common/DifficultyChip.vue';
 import EmptyState from '@/components/common/EmptyState.vue';
 import ProblemMetaChips from '@/components/problem/ProblemMetaChips.vue';
+import ProblemSubmissionsPanel from '@/components/problem/ProblemSubmissionsPanel.vue';
 import ProblemTabs from '@/components/problem/ProblemTabs.vue';
 import SampleCaseCard from '@/components/problem/SampleCaseCard.vue';
+import type { EntityId } from '@aioj/api-client';
 import type { ProblemDetailModel, ProblemTabKey } from '@/types/problem-workspace';
 
 defineProps<{
@@ -78,6 +87,7 @@ defineProps<{
 defineEmits<{
   'update:activeTab': [value: ProblemTabKey];
   'copy-sample': [value: string];
+  'view-submission': [submissionId: EntityId];
 }>();
 
 const { t } = useI18n();

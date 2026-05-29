@@ -19,7 +19,10 @@ const resolvedTone = computed(() => {
   if (props.status === 'ACCEPTED' || props.status === 'EASY') return 'success';
   if (props.status === 'QUEUED' || props.status === 'RUNNING' || props.status === 'MEDIUM') return 'primary';
   if (props.status === 'HARD' || props.status === 'CHALLENGE' || props.status === 'SYSTEM_ERROR') return 'danger';
-  if (props.status === 'WRONG_ANSWER' || props.status === 'TIME_LIMIT_EXCEEDED') return 'warning';
+  if (props.status === 'WRONG_ANSWER'
+      || props.status === 'TIME_LIMIT_EXCEEDED'
+      || props.status === 'MEMORY_LIMIT_EXCEEDED'
+      || props.status === 'OUTPUT_LIMIT_EXCEEDED') return 'warning';
   return 'neutral';
 });
 </script>

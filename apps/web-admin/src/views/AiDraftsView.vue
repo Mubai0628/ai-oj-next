@@ -19,7 +19,9 @@
         </div>
       </div>
 
-      <a-alert v-if="generateError" type="error" show-icon class="form-alert" :content="generateError" />
+      <a-alert v-if="generateError" type="error" show-icon class="form-alert">
+        {{ generateError }}
+      </a-alert>
       <a-form :model="form" layout="vertical" class="draft-generate-form">
         <a-form-item
           :label="t('drafts.topic')"
@@ -95,7 +97,9 @@
         </a-space>
       </div>
 
-      <a-alert v-if="listError" type="error" show-icon :content="listError" />
+      <a-alert v-if="listError" type="error" show-icon>
+        {{ listError }}
+      </a-alert>
       <a-table
         v-if="drafts.length || loading"
         :data="drafts"

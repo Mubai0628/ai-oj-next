@@ -1,7 +1,7 @@
 <template>
   <a-drawer
     v-model:visible="visibleProxy"
-    :width="'clamp(860px, 62vw, 1080px)'"
+    :width="drawerWidth"
     :footer="false"
     class="problem-editor-drawer"
     unmount-on-close
@@ -16,11 +16,11 @@
 
     <a-spin :loading="loadingDetail">
       <a-form :model="form" layout="vertical" class="problem-editor">
-        <a-tabs v-model:active-key="activeTab" type="rounded" class="problem-editor-tabs">
-          <a-tab-pane key="basic" :title="t('problems.editorBasic')" />
-          <a-tab-pane key="statement" :title="t('problems.editorStatement')" />
-          <a-tab-pane key="package" :title="t('problems.editorPackage')" />
-        </a-tabs>
+        <a-radio-group v-model="activeTab" type="button" class="problem-editor-tabs">
+          <a-radio value="basic">{{ t('problems.editorBasic') }}</a-radio>
+          <a-radio value="statement">{{ t('problems.editorStatement') }}</a-radio>
+          <a-radio value="package">{{ t('problems.editorPackage') }}</a-radio>
+        </a-radio-group>
         <a-alert v-if="orphanedFieldErrors.length" type="error" show-icon class="form-alert">
           {{ orphanedFieldErrors.join('；') }}
         </a-alert>
@@ -330,6 +330,8 @@ const visibleProxy = computed({
   get: () => props.visible,
   set: (value: boolean) => emit('update:visible', value)
 });
+
+const drawerWidth = 'clamp(720px, 45vw, 920px)';
 
 const memoryLimitMb = computed({
   get: () => form.memoryLimitKb / 1024,

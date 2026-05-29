@@ -23,6 +23,7 @@
           :active-tab="activeTab"
           @update:active-tab="activeTab = $event"
           @copy-sample="copySample"
+          @view-submission="onViewSubmission"
         />
       </template>
 
@@ -59,6 +60,11 @@
       :problem="problem"
     />
 
+    <SubmissionDetailModal
+      v-model:visible="submissionModalVisible"
+      :submission-id="viewingSubmissionId"
+    />
+
     <ConfirmDialog
       v-model:open="confirmLanguageOpen"
       :title="t('problems.switchLanguageTitle')"
@@ -85,7 +91,7 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Message } from '@arco-design/web-vue';
-import { ApiError, api } from '@aioj/api-client';
+import { ApiError, api, type EntityId } from '@aioj/api-client';
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue';
 import EmptyState from '@/components/common/EmptyState.vue';
 import AiAssistantWorkspaceDrawer from '@/components/ai/AiAssistantWorkspaceDrawer.vue';
@@ -94,6 +100,7 @@ import LoadingSkeleton from '@/components/problem/LoadingSkeleton.vue';
 import ProblemHeader from '@/components/problem/ProblemHeader.vue';
 import ProblemPane from '@/components/problem/ProblemPane.vue';
 import SplitPane from '@/components/problem/SplitPane.vue';
+import SubmissionDetailModal from '@/components/submission/SubmissionDetailModal.vue';
 import type { AiMode } from '@/types/ai-assistant';
 import {
   adaptProblem,
@@ -129,6 +136,8 @@ const aiMode = ref<AiMode>('hint');
 const aiPrompt = ref('');
 const aiSending = ref(false);
 const aiError = ref('');
+const submissionModalVisible = ref(false);
+const viewingSubmissionId = ref<EntityId | null>(null);
 
 function defaultStarter(language: string) {
   const comment = t('problems.starterComment');
@@ -242,6 +251,11 @@ async function copySample(value: string) {
 
 function onSplitReset() {
   Message.success(t('problems.layoutReset'));
+}
+
+function onViewSubmission(id: EntityId) {
+  viewingSubmissionId.value = id;
+  submissionModalVisible.value = true;
 }
 
 async function loadProblem() {

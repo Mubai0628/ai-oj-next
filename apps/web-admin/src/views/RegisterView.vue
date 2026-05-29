@@ -14,8 +14,9 @@
           type="error"
           show-icon
           class="form-alert"
-          :content="error"
-        />
+        >
+          {{ error }}
+        </a-alert>
         <a-form :model="registerForm" layout="vertical" @submit.prevent>
           <a-form-item :label="t('common.account')">
             <a-input v-model="registerForm.account" :placeholder="t('auth.accountPlaceholder')" autocomplete="username" />

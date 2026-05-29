@@ -184,6 +184,7 @@ const latestStatusTone = computed<StatTone>(() => {
   if (!status) return 'neutral';
   if (status === 'ACCEPTED') return 'success';
   if (status === 'QUEUED' || status === 'RUNNING') return 'primary';
+  if (status === 'MEMORY_LIMIT_EXCEEDED' || status === 'OUTPUT_LIMIT_EXCEEDED') return 'warning';
   return 'danger';
 });
 const greeting = computed(() => t('dashboard.greetingWithWave', { name: displayName.value }));

@@ -80,6 +80,8 @@ export const messages = {
       COMPILE_ERROR: '编译错误',
       RUNTIME_ERROR: '运行错误',
       TIME_LIMIT_EXCEEDED: '超时',
+      MEMORY_LIMIT_EXCEEDED: '内存超限',
+      OUTPUT_LIMIT_EXCEEDED: '输出超限',
       SYSTEM_ERROR: '系统错误'
     },
     packageStatus: {
@@ -267,6 +269,7 @@ export const messages = {
       descriptionTab: '题目描述',
       samplesTab: '样例',
       notesTab: '说明',
+      submissionsTab: '我的提交',
       relatedTab: '相关题目',
       samples: '样例',
       noSamples: '暂无公开样例。',
@@ -284,6 +287,15 @@ export const messages = {
       notesEmpty: '该题暂无补充说明。',
       relatedEmptyTitle: '暂无相关题目',
       relatedEmptyDescription: '题库接入相关推荐后会在这里展示同标签练习。',
+      submissionsEmptyTitle: '本题还没有提交记录',
+      submissionsEmptyHint: '在右侧编辑器写代码并提交，记录会出现在这里。',
+      submissionsView: '查看',
+      submissionsRefresh: '刷新',
+      submissionsLoadFailed: '加载提交记录失败',
+      relativeJustNow: '刚刚',
+      relativeMinutesAgo: '{n} 分钟前',
+      relativeHoursAgo: '{n} 小时前',
+      relativeYesterday: '昨天 {time}',
       submitSolution: '提交解答',
       startPractice: '开始练习',
       submit: '提交',
@@ -450,6 +462,9 @@ export const messages = {
       viewStatusLabel: '状态',
       viewTimeLabel: '耗时',
       viewMemoryLabel: '内存',
+      viewRunTimeLabel: '实际耗时',
+      viewExitStatusLabel: '退出码',
+      viewStderrLabel: '错误输出 (stderr)',
       viewJudgeMessage: '评测信息'
     },
     ai: {
@@ -488,7 +503,7 @@ export const messages = {
       tutorGeneral: '请用提示、问题和调试检查来辅导我，不要给完整可复制答案。\n\n{text}'
     },
     aiAssistant: {
-      eyebrow: '按题辅导',
+      eyebrow: '',
       title: 'AI 辅助',
       subtitle: '基于当前题目提供思路提示、边界用例和调试建议',
       historyPageCopy: '查看做题页和独立辅导中保存的 AI 对话历史，按题目复盘你的提问轨迹。',
@@ -731,7 +746,24 @@ export const messages = {
       storage: '存储',
       errorMessage: '错误信息',
       uploadProgress: '上传进度',
-      uploadedChunks: '已上传分块'
+      uploadedChunks: '已上传分块',
+      manifestTitle: '测试包清单（manifest）',
+      manifestHint: '自动从压缩包识别用例，可手动调整。提交时会自动写入 manifest.json。',
+      manifestVersionLabel: '版本号',
+      manifestVersionPlaceholder: '例如 v1-2026-05-26',
+      manifestCaseName: '用例名',
+      manifestCaseInput: '输入文件',
+      manifestCaseOutput: '期望输出文件',
+      manifestCaseSample: '样例',
+      manifestCaseScore: '分值',
+      manifestAddCase: '添加用例',
+      manifestRemoveCase: '删除',
+      manifestDetectedCount: '已识别 {n} 对用例',
+      manifestEmpty: '未识别到成对的输入/输出文件，请手动添加。',
+      manifestInvalidPath: '选定的文件不在压缩包内',
+      manifestAlreadyExists: '压缩包内已包含 manifest.json，将直接使用该清单上传。',
+      manifestRebuilding: '正在为压缩包注入 manifest.json…',
+      manifestInvalid: '请至少配置一条用例并填写版本号。'
     }
   },
   'en-US': {
@@ -815,6 +847,8 @@ export const messages = {
       COMPILE_ERROR: 'Compile Error',
       RUNTIME_ERROR: 'Runtime Error',
       TIME_LIMIT_EXCEEDED: 'Time Limit Exceeded',
+      MEMORY_LIMIT_EXCEEDED: 'Memory Limit Exceeded',
+      OUTPUT_LIMIT_EXCEEDED: 'Output Limit Exceeded',
       SYSTEM_ERROR: 'System Error'
     },
     packageStatus: {
@@ -1002,6 +1036,7 @@ export const messages = {
       descriptionTab: 'Statement',
       samplesTab: 'Samples',
       notesTab: 'Notes',
+      submissionsTab: 'My submissions',
       relatedTab: 'Related',
       samples: 'Samples',
       noSamples: 'No public samples.',
@@ -1019,6 +1054,15 @@ export const messages = {
       notesEmpty: 'No additional notes for this problem yet.',
       relatedEmptyTitle: 'No related problems',
       relatedEmptyDescription: 'Problems with shared tags will appear here after recommendations are connected.',
+      submissionsEmptyTitle: 'No submissions for this problem yet',
+      submissionsEmptyHint: 'Write code in the editor on the right and submit — records appear here.',
+      submissionsView: 'View',
+      submissionsRefresh: 'Refresh',
+      submissionsLoadFailed: 'Failed to load submissions',
+      relativeJustNow: 'just now',
+      relativeMinutesAgo: '{n} min ago',
+      relativeHoursAgo: '{n} h ago',
+      relativeYesterday: 'Yesterday {time}',
       submitSolution: 'Submit solution',
       startPractice: 'Start practice',
       submit: 'Submit',
@@ -1185,6 +1229,9 @@ export const messages = {
       viewStatusLabel: 'Status',
       viewTimeLabel: 'Time',
       viewMemoryLabel: 'Memory',
+      viewRunTimeLabel: 'Wall time',
+      viewExitStatusLabel: 'Exit status',
+      viewStderrLabel: 'Standard error',
       viewJudgeMessage: 'Judge message'
     },
     ai: {
@@ -1466,7 +1513,24 @@ export const messages = {
       storage: 'Storage',
       errorMessage: 'Error message',
       uploadProgress: 'Upload progress',
-      uploadedChunks: 'Uploaded chunks'
+      uploadedChunks: 'Uploaded chunks',
+      manifestTitle: 'Testcase manifest',
+      manifestHint: 'Auto-detected from the zip — adjust if needed. A manifest.json will be written into the package on upload.',
+      manifestVersionLabel: 'Version',
+      manifestVersionPlaceholder: 'e.g. v1-2026-05-26',
+      manifestCaseName: 'Case name',
+      manifestCaseInput: 'Input file',
+      manifestCaseOutput: 'Expected output file',
+      manifestCaseSample: 'Sample',
+      manifestCaseScore: 'Score',
+      manifestAddCase: 'Add case',
+      manifestRemoveCase: 'Remove',
+      manifestDetectedCount: 'Detected {n} case(s)',
+      manifestEmpty: 'No paired files found. Add cases manually.',
+      manifestInvalidPath: 'Selected file is not in the zip',
+      manifestAlreadyExists: 'The zip already contains manifest.json — it will be uploaded as-is.',
+      manifestRebuilding: 'Injecting manifest.json into the zip…',
+      manifestInvalid: 'Configure at least one case and a version before uploading.'
     }
   }
 } as const;

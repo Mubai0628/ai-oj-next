@@ -1,6 +1,8 @@
 <template>
   <section class="view-stack">
-    <a-alert v-if="error" type="error" show-icon :content="error" />
+    <a-alert v-if="error" type="error" show-icon>
+      {{ error }}
+    </a-alert>
     <section class="role-grid">
       <a-card v-for="role in roleCards" :key="role.role" :bordered="false">
         <div class="role-card-head">

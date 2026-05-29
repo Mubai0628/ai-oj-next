@@ -21,7 +21,9 @@
       </div>
     </a-card>
 
-    <a-alert v-if="error" type="error" show-icon :content="error" />
+    <a-alert v-if="error" type="error" show-icon>
+      {{ error }}
+    </a-alert>
     <a-card :bordered="false">
       <a-table :data="users" :loading="loading" :pagination="false" row-key="userId">
         <template #columns>
@@ -64,8 +66,9 @@
           type="warning"
           show-icon
           class="form-alert"
-          :content="roleWarning"
-        />
+        >
+          {{ roleWarning }}
+        </a-alert>
         <a-form-item
           v-if="!editingUser"
           :label="t('common.account')"

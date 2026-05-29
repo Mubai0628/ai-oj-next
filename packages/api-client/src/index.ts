@@ -9,6 +9,8 @@ export type SubmissionStatus =
   | 'COMPILE_ERROR'
   | 'RUNTIME_ERROR'
   | 'TIME_LIMIT_EXCEEDED'
+  | 'MEMORY_LIMIT_EXCEEDED'
+  | 'OUTPUT_LIMIT_EXCEEDED'
   | 'SYSTEM_ERROR';
 
 export interface ApiResponse<T> {
@@ -185,6 +187,10 @@ export interface SubmissionResponse {
   judgeMessage: string;
   timeMillis?: number;
   memoryKb?: number;
+  stdoutExcerpt?: string | null;
+  stderrExcerpt?: string | null;
+  exitStatus?: number | null;
+  runTimeMillis?: number | null;
   createdAt: string;
   judgedAt?: string;
 }

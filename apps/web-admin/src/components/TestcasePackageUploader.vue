@@ -8,8 +8,12 @@
       <a-button :loading="packagesLoading" @click="loadPackages">{{ t('common.refresh') }}</a-button>
     </div>
 
-    <a-alert v-if="error" type="error" show-icon class="form-alert" :content="error" />
-    <a-alert v-if="!problemId" type="warning" show-icon class="form-alert" :content="t('testcase.noProblem')" />
+    <a-alert v-if="error" type="error" show-icon class="form-alert">
+      {{ error }}
+    </a-alert>
+    <a-alert v-if="!problemId" type="warning" show-icon class="form-alert">
+      {{ t('testcase.noProblem') }}
+    </a-alert>
 
     <div class="upload-panel">
       <label class="file-picker">
@@ -34,6 +38,16 @@
       <span>{{ t('testcase.totalChunks') }}</span>
       <strong>{{ totalChunks || '-' }}</strong>
     </div>
+
+    <a-alert v-if="selectedFile && hasExistingManifest" type="info" show-icon class="form-alert">
+      {{ t('testcase.manifestAlreadyExists') }}
+    </a-alert>
+
+    <TestcaseManifestEditor
+      v-if="selectedFile && !hasExistingManifest"
+      v-model="manifestDraft"
+      :entries="zipEntries"
+    />
 
     <div v-if="busy || uploadStatus" class="upload-status">
       <div class="progress-head">
@@ -96,6 +110,7 @@
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Message } from '@arco-design/web-vue';
+import JSZip from 'jszip';
 import {
   ApiError,
   api,
@@ -104,6 +119,27 @@ import {
   type TestcasePackageStatus,
   type TestcaseUploadStatusResponse
 } from '@aioj/api-client';
+import TestcaseManifestEditor from '@/components/TestcaseManifestEditor.vue';
+
+interface ZipEntryInfo {
+  path: string;
+  sizeBytes: number;
+  isDir: boolean;
+}
+
+interface ManifestDraft {
+  version: string;
+  cases: ManifestDraftCase[];
+}
+
+interface ManifestDraftCase {
+  id: string;
+  name: string;
+  input: string;
+  output: string;
+  sample: boolean;
+  score: number | null;
+}
 
 const props = defineProps<{ problemId: EntityId | null }>();
 const emit = defineEmits<{ uploaded: [value: TestcasePackageResponse]; activated: [value: TestcasePackageResponse] }>();
@@ -112,23 +148,28 @@ const { t } = useI18n();
 const chunkSizeBytes = 4 * 1024 * 1024;
 const fileInput = ref<HTMLInputElement | null>(null);
 const selectedFile = ref<File | null>(null);
+const uploadSizeBytes = ref(0);
 const fileSha256 = ref('');
 const uploadStatus = ref<TestcaseUploadStatusResponse | null>(null);
+const zipEntries = ref<ZipEntryInfo[]>([]);
+const hasExistingManifest = ref(false);
+const manifestDraft = ref<ManifestDraft>({ version: '', cases: [] });
 const packages = ref<TestcasePackageResponse[]>([]);
 const packagesLoading = ref(false);
 const busy = ref(false);
 const canRetry = ref(false);
 const error = ref('');
-const phase = ref<'idle' | 'hashing' | 'uploading' | 'completing' | 'polling' | 'ready' | 'failed'>('idle');
+const phase = ref<'idle' | 'building' | 'hashing' | 'uploading' | 'completing' | 'polling' | 'ready' | 'failed'>('idle');
 const activatingId = ref<EntityId | null>(null);
 
-const totalChunks = computed(() => selectedFile.value ? Math.ceil(selectedFile.value.size / chunkSizeBytes) : 0);
+const totalChunks = computed(() => uploadSizeBytes.value ? Math.ceil(uploadSizeBytes.value / chunkSizeBytes) : 0);
 const activePackage = computed(() => packages.value.find((item) => item.active) || null);
 const progressPercent = computed(() => {
   if (!uploadStatus.value) return phase.value === 'hashing' ? 0 : 0;
   return uploadStatus.value.progress <= 1 ? uploadStatus.value.progress * 100 : uploadStatus.value.progress;
 });
 const phaseText = computed(() => {
+  if (phase.value === 'building') return t('testcase.manifestRebuilding');
   if (phase.value === 'hashing') return t('testcase.computing');
   if (phase.value === 'uploading') return t('testcase.uploading');
   if (phase.value === 'completing') return t('testcase.completing');
@@ -173,8 +214,59 @@ function userErrorMessage(caught: unknown, fallback: string) {
 
 function clearSelectedFile() {
   selectedFile.value = null;
+  uploadSizeBytes.value = 0;
   fileSha256.value = '';
+  zipEntries.value = [];
+  hasExistingManifest.value = false;
+  manifestDraft.value = { version: '', cases: [] };
   if (fileInput.value) fileInput.value.value = '';
+}
+
+async function analyzeZip(file: File) {
+  const zip = await JSZip.loadAsync(file);
+  const entries: ZipEntryInfo[] = [];
+  let foundManifest = false;
+
+  zip.forEach((path, entry) => {
+    const normalizedPath = path.replace(/\\/g, '/').replace(/^\.?\//, '');
+    if (normalizedPath === 'manifest.json' && !entry.dir) foundManifest = true;
+    const entryWithData = entry as typeof entry & { _data?: { uncompressedSize?: number } };
+    entries.push({
+      path: normalizedPath,
+      sizeBytes: entryWithData._data?.uncompressedSize ?? 0,
+      isDir: entry.dir
+    });
+  });
+
+  zipEntries.value = entries;
+  hasExistingManifest.value = foundManifest;
+}
+
+function validateManifestDraft(draft: ManifestDraft) {
+  if (!draft.version.trim() || draft.cases.length === 0) {
+    return t('testcase.manifestInvalid');
+  }
+
+  const validPaths = new Set(zipEntries.value.filter((entry) => !entry.isDir).map((entry) => entry.path));
+  const hasInvalidPath = draft.cases.some((item) => !validPaths.has(item.input) || !validPaths.has(item.output));
+  return hasInvalidPath ? t('testcase.manifestInvalidPath') : '';
+}
+
+async function injectManifest(file: File, draft: ManifestDraft): Promise<Blob> {
+  const zip = await JSZip.loadAsync(file);
+  const payload = {
+    version: draft.version.trim(),
+    cases: draft.cases.map((item) => ({
+      name: item.name.trim() || undefined,
+      input: item.input,
+      output: item.output,
+      sample: item.sample,
+      score: item.score ?? undefined
+    }))
+  };
+
+  zip.file('manifest.json', JSON.stringify(payload, null, 2));
+  return zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } });
 }
 
 async function selectFile(event: Event) {
@@ -187,12 +279,17 @@ async function selectFile(event: Event) {
 
   if (!file) {
     selectedFile.value = null;
+    uploadSizeBytes.value = 0;
+    zipEntries.value = [];
+    hasExistingManifest.value = false;
+    manifestDraft.value = { version: '', cases: [] };
     phase.value = 'idle';
     return;
   }
 
   if (!file.name.toLowerCase().endsWith('.zip')) {
     selectedFile.value = null;
+    uploadSizeBytes.value = 0;
     phase.value = 'failed';
     error.value = t('testcase.onlyZip');
     if (fileInput.value) fileInput.value.value = '';
@@ -202,16 +299,34 @@ async function selectFile(event: Event) {
   const MAX_BYTES = 200 * 1024 * 1024;
   if (file.size > MAX_BYTES) {
     selectedFile.value = null;
+    uploadSizeBytes.value = 0;
     phase.value = 'failed';
     error.value = t('testcase.fileTooLarge');
     if (fileInput.value) fileInput.value.value = '';
     return;
   }
 
-  selectedFile.value = file;
-  phase.value = 'hashing';
-  fileSha256.value = await sha256(file);
-  phase.value = 'idle';
+  try {
+    selectedFile.value = file;
+    uploadSizeBytes.value = file.size;
+    manifestDraft.value = { version: '', cases: [] };
+    await analyzeZip(file);
+
+    if (hasExistingManifest.value) {
+      phase.value = 'hashing';
+      fileSha256.value = await sha256(file);
+    }
+    phase.value = 'idle';
+  } catch (caught) {
+    selectedFile.value = null;
+    uploadSizeBytes.value = 0;
+    zipEntries.value = [];
+    hasExistingManifest.value = false;
+    manifestDraft.value = { version: '', cases: [] };
+    phase.value = 'failed';
+    error.value = userErrorMessage(caught, t('testcase.onlyZip'));
+    if (fileInput.value) fileInput.value.value = '';
+  }
 }
 
 async function uploadSelected() {
@@ -230,17 +345,32 @@ async function uploadSelected() {
   uploadStatus.value = null;
 
   try {
-    if (!fileSha256.value) {
-      phase.value = 'hashing';
-      fileSha256.value = await sha256(selectedFile.value);
+    let fileToUpload: Blob = selectedFile.value;
+
+    if (!hasExistingManifest.value) {
+      const validationError = validateManifestDraft(manifestDraft.value);
+      if (validationError) {
+        error.value = validationError;
+        phase.value = 'failed';
+        canRetry.value = true;
+        return;
+      }
+
+      phase.value = 'building';
+      fileToUpload = await injectManifest(selectedFile.value, manifestDraft.value);
     }
+
+    uploadSizeBytes.value = fileToUpload.size;
+    phase.value = 'hashing';
+    fileSha256.value = await sha256(fileToUpload);
+    const totalChunksForUpload = Math.ceil(fileToUpload.size / chunkSizeBytes);
 
     const init = await api.initTestcasePackage(props.problemId, {
       fileName: selectedFile.value.name,
-      fileSizeBytes: selectedFile.value.size,
+      fileSizeBytes: fileToUpload.size,
       sha256: fileSha256.value,
       chunkSizeBytes,
-      totalChunks: totalChunks.value
+      totalChunks: totalChunksForUpload
     });
 
     let status: TestcaseUploadStatusResponse = {
@@ -258,7 +388,7 @@ async function uploadSelected() {
     for (let index = 0; index < init.totalChunks; index += 1) {
       if (uploaded.has(index)) continue;
       const start = index * chunkSizeBytes;
-      const chunk = selectedFile.value.slice(start, Math.min(selectedFile.value.size, start + chunkSizeBytes));
+      const chunk = fileToUpload.slice(start, Math.min(fileToUpload.size, start + chunkSizeBytes));
       const chunkSha256 = await sha256(chunk);
       status = await api.uploadTestcaseChunk(props.problemId, init.uploadId, index, chunk, chunkSha256);
       uploadStatus.value = status;

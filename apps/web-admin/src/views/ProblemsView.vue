@@ -25,7 +25,9 @@
       </div>
     </a-card>
 
-    <a-alert v-if="error" type="error" show-icon :content="error" />
+    <a-alert v-if="error" type="error" show-icon>
+      {{ error }}
+    </a-alert>
     <a-card :bordered="false" class="table-card">
       <a-table :data="problems" :loading="loading" :pagination="false" row-key="id" :scroll="{ x: 900 }">
         <template #columns>

@@ -79,76 +79,29 @@
       </div>
     </a-spin>
 
-    <a-modal
+    <SubmissionDetailModal
       v-model:visible="detailVisible"
-      :title="t('submissions.viewCodeTitle')"
-      :footer="false"
-      :width="780"
-      unmount-on-close
-    >
-      <a-spin :loading="detailLoading" style="display: block;">
-        <a-alert v-if="detailError" type="error" show-icon style="margin-bottom: 12px;">
-          {{ detailError }}
-        </a-alert>
-        <template v-else-if="detail">
-          <div class="submission-detail-meta">
-            <div><span>{{ t('submissions.viewProblemLabel') }}</span><strong>#{{ detail.problemId }}</strong></div>
-            <div><span>{{ t('submissions.viewLanguageLabel') }}</span><strong>{{ detail.language || '-' }}</strong></div>
-            <div>
-              <span>{{ t('submissions.viewStatusLabel') }}</span>
-              <strong>{{ t(`submissionStatus.${detail.status}`) }}</strong>
-            </div>
-            <div><span>{{ t('submissions.viewTimeLabel') }}</span><strong>{{ detail.timeMillis ?? '-' }} ms</strong></div>
-            <div><span>{{ t('submissions.viewMemoryLabel') }}</span><strong>{{ detail.memoryKb ?? '-' }} KB</strong></div>
-          </div>
-          <a-alert
-            v-if="detail.judgeMessage"
-            type="info"
-            show-icon
-            class="submission-detail-judge-msg"
-          >
-            {{ t('submissions.viewJudgeMessage') }}：{{ detail.judgeMessage }}
-          </a-alert>
-          <div class="submission-detail-code-head">
-            <strong>{{ t('submissions.viewCodeTitle') }}</strong>
-            <a-button size="small" :disabled="!detail.code" @click="copyDetailCode">
-              {{ t('submissions.viewCodeCopy') }}
-            </a-button>
-          </div>
-          <MdPreview
-            v-if="detail.code"
-            :model-value="detailCodeMarkdown"
-            language="zh-CN"
-            preview-theme="github"
-            code-theme="github"
-          />
-          <a-empty v-else :description="t('submissions.viewCodeUnavailable')" />
-        </template>
-      </a-spin>
-    </a-modal>
+      :submission-id="detailSubmissionId"
+    />
   </section>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { Message } from '@arco-design/web-vue';
-import { ApiError, api, type EntityId, type SubmissionResponse, type SubmissionStatus } from '@aioj/api-client';
-import { MdPreview } from 'md-editor-v3';
-import 'md-editor-v3/lib/preview.css';
+import { api, type EntityId, type SubmissionResponse, type SubmissionStatus } from '@aioj/api-client';
 import BaseCard from '@/components/common/BaseCard.vue';
 import EmptyState from '@/components/common/EmptyState.vue';
 import PageHeader from '@/components/common/PageHeader.vue';
 import StatusChip from '@/components/common/StatusChip.vue';
+import SubmissionDetailModal from '@/components/submission/SubmissionDetailModal.vue';
 
 const { t } = useI18n();
 const loading = ref(false);
 const error = ref('');
 const submissions = ref<SubmissionResponse[]>([]);
 const detailVisible = ref(false);
-const detailLoading = ref(false);
-const detailError = ref('');
-const detail = ref<SubmissionResponse | null>(null);
+const detailSubmissionId = ref<EntityId | null>(null);
 const statuses: SubmissionStatus[] = [
   'QUEUED',
   'RUNNING',
@@ -157,6 +110,8 @@ const statuses: SubmissionStatus[] = [
   'COMPILE_ERROR',
   'RUNTIME_ERROR',
   'TIME_LIMIT_EXCEEDED',
+  'MEMORY_LIMIT_EXCEEDED',
+  'OUTPUT_LIMIT_EXCEEDED',
   'SYSTEM_ERROR'
 ];
 const filters = reactive<{ keyword: string; status: SubmissionStatus | ''; language: string; startDate: string; endDate: string }>({
@@ -168,12 +123,6 @@ const filters = reactive<{ keyword: string; status: SubmissionStatus | ''; langu
 });
 
 const languageOptions = computed(() => Array.from(new Set(submissions.value.map((item) => item.language).filter(Boolean))).sort());
-
-const detailCodeMarkdown = computed(() => {
-  if (!detail.value?.code) return '';
-  const lang = (detail.value.language || '').toLowerCase();
-  return ['```' + lang, detail.value.code, '```'].join('\n');
-});
 
 const filteredSubmissions = computed(() => {
   const keyword = filters.keyword.trim().toLowerCase();
@@ -222,6 +171,8 @@ function statusTone(status: SubmissionStatus): 'primary' | 'success' | 'warning'
   if (status === 'RUNNING') return 'primary';
   if (status === 'QUEUED') return 'neutral';
   if (status === 'COMPILE_ERROR') return 'warning';
+  if (status === 'MEMORY_LIMIT_EXCEEDED') return 'warning';
+  if (status === 'OUTPUT_LIMIT_EXCEEDED') return 'warning';
   return 'danger';
 }
 
@@ -233,32 +184,9 @@ function resetFilters() {
   filters.endDate = '';
 }
 
-async function openDetail(item: SubmissionResponse) {
+function openDetail(item: SubmissionResponse) {
+  detailSubmissionId.value = item.id;
   detailVisible.value = true;
-  detailLoading.value = true;
-  detailError.value = '';
-  detail.value = null;
-  try {
-    detail.value = await api.submission(item.id);
-  } catch (err) {
-    detailError.value = err instanceof ApiError
-      ? err.userMessage
-      : err instanceof Error
-        ? err.message
-        : t('submissions.viewLoadFailed');
-  } finally {
-    detailLoading.value = false;
-  }
-}
-
-async function copyDetailCode() {
-  if (!detail.value?.code) return;
-  try {
-    await navigator.clipboard.writeText(detail.value.code);
-    Message.success(t('submissions.viewCodeCopied'));
-  } catch {
-    Message.success(t('submissions.viewCodeCopied'));
-  }
 }
 
 async function loadSubmissions() {

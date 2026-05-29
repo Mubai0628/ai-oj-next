@@ -4,7 +4,9 @@
       <a-button :loading="loading" @click="loadDashboard">{{ t('common.refresh') }}</a-button>
     </div>
 
-    <a-alert v-if="error" type="error" show-icon :content="error" />
+    <a-alert v-if="error" type="error" show-icon>
+      {{ error }}
+    </a-alert>
     <a-spin :loading="loading" :tip="t('dashboard.adminLoading')">
       <section v-if="hasStats" class="stats-grid">
         <OjStat :label="t('dashboard.users')" :value="stats.usersTotal" />

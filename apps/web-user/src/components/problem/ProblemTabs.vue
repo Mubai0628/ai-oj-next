@@ -32,6 +32,7 @@ const { t } = useI18n();
 
 const tabs = computed<Array<{ key: ProblemTabKey; label: string }>>(() => [
   { key: 'statement', label: t('problems.descriptionTab') },
+  { key: 'submissions', label: t('problems.submissionsTab') },
   { key: 'related', label: t('problems.relatedTab') }
 ]);
 </script>
