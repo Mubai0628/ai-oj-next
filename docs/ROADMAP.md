@@ -10,7 +10,7 @@
 
 目标：**让真实学生能在真实老师手里跑完一节课的练习闭环**。这阶段任何新功能（含用户组）必须暂停。
 
-- [!] **真实隔离沙箱** — judge-worker 已搭好调用端，但沙箱本体（cgroup/namespace/seccomp/语言运行时镜像/输出截断/资源审计）未实现。这是 P0 阻塞项
+- [x] **真实隔离沙箱** — 已交付 go-judge `/run` 真实调用、Python/C++/Java runtime image、输出截断与 runtime 字段落库；2026-05-29 已跑通提交→评测→详情展示闭环
 - [ ] **大测试点全链路压测** — 50MB/100MB zip、断点续传、hash 校验、缺包/坏包死信、worker 缓存命中、`SYSTEM_ERROR` 审计完整性
 - [ ] **Ubuntu 24 生产部署验收** — Docker secrets、Nginx HTTPS、Nacos/Sentinel 生产鉴权、Flyway 顺序、多实例启动顺序、外部备份恢复演练
 - [ ] **关键 service 单测托底** — `JudgeTaskListener` / `TestcasePackageValidator` / `UserAccountService` / `JwtTokenService` 至少有正常路径 + 主要异常路径

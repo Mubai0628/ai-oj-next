@@ -107,6 +107,22 @@ SANDBOX_ENDPOINT=http://sandbox:8090/execute
 docker compose -f deploy/compose.yml --profile judge up -d --build
 ```
 
+### 3.3.1 Sandbox runtime image
+
+`deploy/sandbox/Dockerfile` 以 `criyle/go-judge:v1.12.0` 提供 sandbox 引擎，
+并用 `eclipse-temurin:17-jdk-jammy` 作为运行时基础层，安装 `python3` 与
+`g++`。JDK 复制到 `/usr/lib/jvm/temurin-17`，并提供 `/usr/bin/java` /
+`/usr/bin/javac`，这样 go-judge 的隔离执行环境挂载 `/usr` 时可以稳定找到
+Java 编译与运行命令。
+
+2026-05-29 已在 Windows + Docker Desktop 上构建 `aioj-sandbox-runtime:e2e`
+并验证：
+
+- `GET /version` 返回 go-judge `v1.12.0`
+- Python hello world → `Accepted`
+- C++ `g++` 编译 + 运行 → `Accepted`
+- Java `javac Main.java` + `java -cp . Main` → `Accepted`
+
 ### 3.4 安全约束
 
 - 后端主机 RabbitMQ `5672` 和 MySQL `3306` 端口只允许判题主机所在内网访问，禁止公网暴露。
@@ -120,7 +136,8 @@ docker compose -f deploy/compose.yml --profile judge up -d --build
 
 - ✓ Phase 2 已实现 testcase zip 跨主机 HTTP blob 分发；判题主机按需拉取后端主机上的测试包并校验 sha256。
 - ✓ Phase 4 已实现 `SandboxClient` 对 go-judge `/run` 的真实 HTTP 调用、逐 case 输出比较、状态映射和 runtime 字段落库。
-- Phase 5 还需要交付包含 Python / C++ / Java runtime 的生产 sandbox image，并完成提交→评测→详情展示的端到端联调。
+- ✓ Phase 5 已交付包含 Python / C++ / Java runtime 的 sandbox image，并完成提交→评测→详情展示端到端联调。
+- 尚未覆盖大测试点压测：50MB / 100MB zip、断点重试、非法路径、hash 校验、worker 缓存、缺包/坏包审计链路仍需专项验证。
 
 ### 3.6 Internal Testcase Blob 链路
 

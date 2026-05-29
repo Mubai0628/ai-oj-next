@@ -62,13 +62,12 @@
 | `packages/ui` 复用层 | 🟡 偏薄 | 目前只 `OjStat` + `OjToolbar`；`PageHeader/EmptyState/StatusChip/DifficultyChip` 还分散在 user/admin |
 | 管理端样式统一 | 🟡 推进中 | 用户/角色/AI 草稿/题库的筛选、表格密度、空状态、移动端体验仍可继续收敛 |
 | `api-client/src/index.ts` 单文件 509 行 | 🟡 待拆 | types / http / endpoints 应分离 |
-| 真实隔离沙箱 | 🟡 Phase 4 done | go-judge compose、testcase zip internal HTTP 分发、DTO/状态扩展、真实 `SandboxClient`、V7 runtime 字段已完成；Phase 5 剩 multi-language runtime image + 端到端联调 |
+| 真实隔离沙箱 | ✅ Phase 5 done | go-judge `/run`、testcase zip internal HTTP 分发、DTO/状态扩展、runtime 字段、Python/C++/Java sandbox image 与完整学生提交链路均已跑通 |
 
 ## 4. 待办（重要未完成）
 
 | 项 | 优先级 | 风险 |
 |---|---|---|
-| **多语言沙箱镜像 + 端到端联调** | 🔴 P0 | 真实 `SandboxClient` 已接 go-judge `/run`；仍需构建包含 Python/C++/Java runtime 的生产镜像，并跑提交→评测→详情展示全链路 |
 | **大测试点压测** | 🟠 P1 | 50MB/100MB zip、断点重试、非法路径、hash 校验、worker 缓存、缺包/坏包 `SYSTEM_ERROR` 审计链路需要全链路压一遍 |
 | **Ubuntu 24 生产部署验收** | 🟠 P1 | Docker/Nginx/secrets/Nacos & Sentinel 生产鉴权/迁移顺序/多实例启动顺序需要专项验证 |
 | 后端单测 | 🟡 P2 | `backend/**/src/test/` 为空。关键 service（JudgeTaskListener / TokenService / TestcasePackageValidator / UserAccountService）应先补 |
@@ -92,6 +91,10 @@
 - **判题主机 privileged sandbox**：判题主机必须 `privileged: true` 跑
   sandbox container，不应与其他业务混部，主机层加固按 docs/deployment.md
   §3.4。
+- **Phase 5 E2E 已验证但还缺自动化保护**：2026-05-29 已用隔离
+  MySQL/RabbitMQ/sandbox 跑通 Python/C++/Java AC、C++ 编译错误、Python
+  运行错误、TLE、OLE，并在学生端浏览器确认详情弹窗；后续仍需要把该
+  流程沉淀为自动化 e2e 或 smoke 脚本。
 
 ## 6. 关键文件锚点
 
