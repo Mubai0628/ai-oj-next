@@ -265,6 +265,9 @@ Phase 1–5 沙箱主链路已入仓。接手第一件事仍然是先跑 `git st
   - 大量 stdout → `OUTPUT_LIMIT_EXCEEDED`
   - 学生端题目详情"我的提交"tab 与 `/submissions` 详情弹窗均已浏览器验证
 - [x] Flyway V1–V7 在隔离 MySQL `8.4` 干净库上由 auth-service 跑通
+- [x] 2026-05-30 本地 IDEA + Docker sandbox 联调：补齐 `AIOJ_INTERNAL_API_TOKEN`
+      与 `PROBLEM_SERVICE_BASE_URL=http://127.0.0.1:8202` 默认值，修复
+      judge-worker 拉取 testcase blob 失败导致的 `SYSTEM_ERROR`
 
 **Week 3 · 大测试点压测 + Ubuntu 24 部署验收**
 

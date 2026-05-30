@@ -95,6 +95,12 @@
   MySQL/RabbitMQ/sandbox 跑通 Python/C++/Java AC、C++ 编译错误、Python
   运行错误、TLE、OLE，并在学生端浏览器确认详情弹窗；后续仍需要把该
   流程沉淀为自动化 e2e 或 smoke 脚本。
+- **IDEA 本地联调不要用 Docker 服务名**：2026-05-30 复现
+  `Testcase package unavailable: failed to fetch testcase package blob`，根因是
+  judge-worker 本地进程拉 problem-service blob 时必须使用
+  `PROBLEM_SERVICE_BASE_URL=http://127.0.0.1:8202`，且与 problem-service 共用
+  `AIOJ_INTERNAL_API_TOKEN=dev-internal-token`；直接 curl internal blob 返回
+  `200` 后，重启 judge-worker 再提交即可恢复。
 
 ## 6. 关键文件锚点
 

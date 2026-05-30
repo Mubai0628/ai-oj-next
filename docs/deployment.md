@@ -148,6 +148,19 @@ Java 编译与运行命令。
 - 配置: judge-worker 通过 `PROBLEM_SERVICE_BASE_URL` 指向后端主机 problem-service，例如 `http://<后端主机>:8202`。
 - 生产部署: `AIOJ_INTERNAL_API_TOKEN` 建议使用 Docker secrets 或 host-mounted secret file 注入；不要和 `SANDBOX_TOKEN` 共用。
 
+### 3.7 本地 IDEA 联调注意
+
+- IDEA 直接启动后端服务、Docker 只跑 sandbox 时，`judge-worker` 必须直连宿主机 problem-service：`PROBLEM_SERVICE_BASE_URL=http://127.0.0.1:8202`。
+- 本地默认内部 token 为 `dev-internal-token`；如覆盖 `AIOJ_INTERNAL_API_TOKEN`，problem-service 与 judge-worker 必须完全一致。
+- Docker Compose judge profile 仍通过环境变量覆盖为 `http://problem-service:8202`，不要把容器网络服务名用于 IDEA 宿主机进程。
+- 若提交显示 `Testcase package unavailable: failed to fetch testcase package blob`，先验证内部 blob 链路：
+  ```powershell
+  curl.exe -i -H "X-Internal-Token: dev-internal-token" `
+    http://127.0.0.1:8202/api/v1/internal/testcase-packages/<packageId>/blob `
+    -o $env:TEMP\aioj-blob-test.zip
+  ```
+  该命令必须返回 `200`，再排查 judge-worker 或 sandbox。
+
 ## 4. Production Notes
 
 - Keep Nacos, MySQL, Redis, RabbitMQ, and Sentinel on an internal network.
