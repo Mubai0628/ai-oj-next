@@ -57,6 +57,7 @@ import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import { Message } from '@arco-design/web-vue';
 import { ApiError, api, authStore, type Role } from '@aioj/api-client';
+import { createDefaultDisplayName } from '@aioj/ui';
 
 const router = useRouter();
 const { t } = useI18n();
@@ -65,7 +66,7 @@ const registerForm = reactive({
   account: '',
   password: '',
   confirmPassword: '',
-  displayName: '',
+  displayName: createDefaultDisplayName(),
   email: '',
   role: 'STUDENT' as Extract<Role, 'STUDENT' | 'TEACHER'>
 });

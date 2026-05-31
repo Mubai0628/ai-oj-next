@@ -34,7 +34,7 @@ import {
   Tooltip
 } from '@arco-design/web-vue';
 import '@arco-design/web-vue/dist/arco.css';
-import { i18n, installI18n } from '@aioj/i18n';
+import { installI18n, resolveApiErrorMessage } from '@aioj/i18n';
 import { installErrorReporter, setApiErrorMessageResolver } from '@aioj/api-client';
 import App from './App.vue';
 import router from './router';
@@ -82,11 +82,7 @@ Object.entries({
 app.use(createPinia());
 installI18n(app);
 setApiErrorMessageResolver((code, fallback) => {
-  const key = `errors.${code}`;
-  const localized = i18n.global.t(key);
-  if (localized && localized !== key) return localized;
-  const generic = i18n.global.t('errors.unknown');
-  return generic !== 'errors.unknown' ? generic : fallback;
+  return resolveApiErrorMessage(code, fallback);
 });
 installErrorReporter({ appName: 'web-admin' });
 app.use(router);

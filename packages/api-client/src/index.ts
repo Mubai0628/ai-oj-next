@@ -218,6 +218,34 @@ export interface AiUsageResponse {
   monthlyLimit: number;
 }
 
+export type AiAssistMode = 'hint' | 'debug' | 'edge' | 'optimize';
+
+export interface AiProblemContextPayload {
+  id?: EntityId;
+  title?: string;
+  difficulty?: Difficulty | string;
+  statement?: string;
+  notes?: string | null;
+  tags?: string[];
+  samples?: TestCaseDto[];
+  timeLimitMillis?: number;
+  memoryLimitKb?: number;
+}
+
+export interface AiCodeContextPayload {
+  language?: string;
+  code: string;
+}
+
+export interface AiChatPayload {
+  conversationId?: string;
+  problemId?: EntityId;
+  message: string;
+  mode?: AiAssistMode;
+  problemContext?: AiProblemContextPayload;
+  codeContext?: AiCodeContextPayload;
+}
+
 export interface ProblemDraftResponse {
   id: EntityId;
   title: string;
@@ -460,7 +488,7 @@ export const api = {
   mySubmissions: (params: SubmissionListParams = {}) =>
     request<PageResponse<SubmissionResponse>>(`/api/v1/submissions${queryString({ page: 1, pageSize: 20, mine: true, ...params })}`),
 
-  aiSend: (payload: { conversationId?: string; problemId?: EntityId; message: string }) =>
+  aiSend: (payload: AiChatPayload) =>
     request<AiChatMessageResponse>('/api/v1/ai/chat/send', {
       method: 'POST',
       body: JSON.stringify(payload)
@@ -517,7 +545,7 @@ export const api = {
 };
 
 export async function streamAi(
-  payload: { conversationId?: string; problemId?: EntityId; message: string },
+  payload: AiChatPayload,
   onEvent: (event: 'meta' | 'message' | 'error' | 'done' | string, data: string) => void
 ) {
   const response = await fetch(`${apiBaseUrl()}/api/v1/ai/chat/stream`, {

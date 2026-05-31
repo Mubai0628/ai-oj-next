@@ -32,6 +32,7 @@ import { useI18n } from 'vue-i18n';
 import { Message } from '@arco-design/web-vue';
 import { useRouter } from 'vue-router';
 import { ApiError } from '@aioj/api-client';
+import { createDefaultDisplayName } from '@aioj/ui';
 import { useAuthStore } from '@/stores/auth';
 
 const auth = useAuthStore();
@@ -40,7 +41,7 @@ const { t } = useI18n();
 const loading = ref(false);
 const form = reactive({
   account: '',
-  displayName: '',
+  displayName: createDefaultDisplayName(),
   email: '',
   password: ''
 });

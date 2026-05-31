@@ -11,7 +11,11 @@
 
     <div class="ai-chat-mode-row">
       <AiModeTabs :model-value="mode" @update:model-value="$emit('update:mode', $event)" />
-      <p>{{ t('aiAssistant.rule') }}</p>
+      <div v-if="contextScopeLabel || contextNotice" class="ai-context-strip">
+        <span v-if="contextScopeLabel">{{ contextScopeLabel }}</span>
+        <small v-if="contextNotice">{{ contextNotice }}</small>
+      </div>
+      <p v-else>{{ t('aiAssistant.rule') }}</p>
     </div>
 
     <AiMessageList
@@ -59,6 +63,8 @@ const props = defineProps<{
   sending: boolean;
   error?: string;
   contextLabel: string;
+  contextScopeLabel?: string;
+  contextNotice?: string;
   emptyTitle: string;
   emptyDescription: string;
   richMarkdown?: boolean;

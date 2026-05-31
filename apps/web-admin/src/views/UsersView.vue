@@ -48,8 +48,11 @@
             <template #cell="{ record }">
               <a-space>
                 <a-button size="small" @click="openEdit(record)">{{ t('common.edit') }}</a-button>
-                <a-popconfirm :content="t('adminUsers.disableConfirm')" @ok="disableUser(record)">
-                  <a-button size="small" status="danger" :disabled="!record.enabled">{{ t('common.disable') }}</a-button>
+                <a-popconfirm v-if="record.enabled" :content="t('adminUsers.disableConfirm')" @ok="disableUser(record)">
+                  <a-button size="small" status="danger">{{ t('common.disable') }}</a-button>
+                </a-popconfirm>
+                <a-popconfirm v-else :content="t('adminUsers.enableConfirm')" @ok="enableUser(record)">
+                  <a-button size="small" type="primary">{{ t('common.enable') }}</a-button>
                 </a-popconfirm>
               </a-space>
             </template>
@@ -128,6 +131,7 @@ import { onMounted, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Message } from '@arco-design/web-vue';
 import { ApiError, api, type AdminUserResponse, type Role, type RoleResponse } from '@aioj/api-client';
+import { createDefaultDisplayName } from '@aioj/ui';
 
 const { t } = useI18n();
 const loading = ref(false);
@@ -186,7 +190,7 @@ function roleLabel(role: Role, fallback?: string) {
 function resetForm() {
   form.account = '';
   form.password = '';
-  form.displayName = '';
+  form.displayName = createDefaultDisplayName();
   form.email = '';
   form.baseRole = 'STUDENT';
   form.adminAccess = false;
@@ -288,6 +292,21 @@ async function disableUser(user: AdminUserResponse) {
     await loadUsers();
   } catch (caught) {
     Message.error(caught instanceof ApiError ? caught.userMessage : (caught instanceof Error ? caught.message : t('adminUsers.disableFailed')));
+  }
+}
+
+async function enableUser(user: AdminUserResponse) {
+  try {
+    await api.updateUser(user.userId, {
+      displayName: user.displayName,
+      email: user.email,
+      roles: normalizeExistingRoles(user.roles),
+      enabled: true
+    });
+    Message.success(t('adminUsers.userEnabled'));
+    await loadUsers();
+  } catch (caught) {
+    Message.error(caught instanceof ApiError ? caught.userMessage : (caught instanceof Error ? caught.message : t('adminUsers.enableFailed')));
   }
 }
 

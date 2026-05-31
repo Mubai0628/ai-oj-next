@@ -40,6 +40,7 @@ import java.util.stream.Collectors;
 @Service
 public class UserAccountService {
     private static final Set<Role> ALLOWED_ROLES = Set.of(Role.STUDENT, Role.TEACHER, Role.ADMIN);
+    static final String DISABLED_ACCOUNT_MESSAGE = "Account is disabled. Please contact an administrator.";
 
     private final PasswordEncoder passwordEncoder;
     private final UserMapper userMapper;
@@ -84,9 +85,11 @@ public class UserAccountService {
 
     public UserAccount login(String account, String rawPassword) {
         UserEntity user = findUserByAccount(account);
-        if (user == null || !Boolean.TRUE.equals(user.getEnabled())
-                || !passwordEncoder.matches(rawPassword, user.getPasswordHash())) {
+        if (user == null || !passwordEncoder.matches(rawPassword, user.getPasswordHash())) {
             throw new DomainException(ErrorCode.UNAUTHORIZED, "Invalid account or password");
+        }
+        if (!Boolean.TRUE.equals(user.getEnabled())) {
+            throw new DomainException(ErrorCode.FORBIDDEN, DISABLED_ACCOUNT_MESSAGE);
         }
         return toAccount(user, rolesForUser(user.getId()));
     }
@@ -94,7 +97,7 @@ public class UserAccountService {
     public UserAccount getById(Long userId) {
         UserEntity user = requireUser(userId);
         if (!Boolean.TRUE.equals(user.getEnabled())) {
-            throw new DomainException(ErrorCode.FORBIDDEN, "User is disabled");
+            throw new DomainException(ErrorCode.FORBIDDEN, DISABLED_ACCOUNT_MESSAGE);
         }
         return toAccount(user, rolesForUser(userId));
     }
@@ -108,7 +111,7 @@ public class UserAccountService {
     public UserProfileResponse updateProfile(Long userId, UserUpdateRequest request) {
         UserEntity user = requireUser(userId);
         if (!Boolean.TRUE.equals(user.getEnabled())) {
-            throw new DomainException(ErrorCode.FORBIDDEN, "User is disabled");
+            throw new DomainException(ErrorCode.FORBIDDEN, DISABLED_ACCOUNT_MESSAGE);
         }
         user.setDisplayName(request.displayName());
         user.setEmail(normalizeBlank(request.email()));
@@ -121,7 +124,7 @@ public class UserAccountService {
     public void updatePassword(Long userId, PasswordUpdateRequest request) {
         UserEntity user = requireUser(userId);
         if (!Boolean.TRUE.equals(user.getEnabled())) {
-            throw new DomainException(ErrorCode.FORBIDDEN, "User is disabled");
+            throw new DomainException(ErrorCode.FORBIDDEN, DISABLED_ACCOUNT_MESSAGE);
         }
         if (!passwordEncoder.matches(request.currentPassword(), user.getPasswordHash())) {
             throw new DomainException(ErrorCode.UNAUTHORIZED, "Current password is incorrect");

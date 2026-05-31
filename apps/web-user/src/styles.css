@@ -3022,6 +3022,32 @@ body.is-resizing-problem-workspace * {
   font-size: 12px;
 }
 
+.ai-context-strip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ai-context-strip span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 10px;
+  border: 1px solid #bfdbfe;
+  border-radius: 999px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.ai-context-strip small {
+  color: var(--color-text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 .ai-mode-tabs,
 .ai-quick-chips {
   display: flex;
@@ -3725,6 +3751,10 @@ body.is-resizing-problem-workspace * {
   gap: 8px;
   padding: 12px clamp(18px, 2vw, 24px);
   background: #fbfdff;
+}
+
+.ai-assist-modal .ai-context-strip span {
+  white-space: nowrap;
 }
 
 .ai-assist-modal .ai-mode-tabs {

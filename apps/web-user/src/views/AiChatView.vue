@@ -87,6 +87,8 @@
           :sending="sending"
           :error="error"
           :context-label="detailProblemTitle || t('ai.noProblem')"
+          :context-scope-label="detailProblemId ? t('aiAssistant.contextProblemOnly') : undefined"
+          :context-notice="detailProblemId ? t('aiAssistant.contextProblemOnlyHint') : t('aiAssistant.rule')"
           :empty-title="emptyDetailTitle"
           :empty-description="emptyDetailDescription"
           @update:mode="setMode"
@@ -105,7 +107,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n';
 import { Message } from '@arco-design/web-vue';
 import { useRoute, useRouter } from 'vue-router';
-import { api, streamAi, type ProblemResponse } from '@aioj/api-client';
+import { api, streamAi, type AiChatPayload, type ProblemResponse } from '@aioj/api-client';
 import AiChatPanel from '@/components/ai/AiChatPanel.vue';
 import AiConversationCard from '@/components/ai/AiConversationCard.vue';
 import AiProblemContextCard from '@/components/ai/AiProblemContextCard.vue';
@@ -212,16 +214,30 @@ function ensureConversation(text: string): AiConversation {
   return conversation;
 }
 
-function buildMessage(text: string, conversation: AiConversation) {
-  if (conversation.problemId) {
-    return t('aiAssistant.problemTutorMessage', {
-      id: conversation.problemId,
-      title: conversation.problemTitle || '',
-      mode: t(`aiAssistant.modes.${mode.value}`),
-      request: text
-    });
+function problemContextPayload(conversation: AiConversation): AiChatPayload['problemContext'] | undefined {
+  const fullProblem = problems.value.find((problem) => String(problem.id) === String(conversation.problemId || selectedFilterProblem.value?.id));
+  if (fullProblem) {
+    return {
+      id: fullProblem.id,
+      title: fullProblem.title,
+      difficulty: fullProblem.difficulty,
+      statement: fullProblem.statement,
+      notes: fullProblem.notes,
+      tags: fullProblem.tags,
+      samples: fullProblem.samples?.slice(0, 3),
+      timeLimitMillis: fullProblem.timeLimitMillis,
+      memoryLimitKb: fullProblem.memoryLimitKb
+    };
   }
-  return t('ai.tutorGeneral', { text });
+  if (conversation.problemId || conversation.problemTitle) {
+    return {
+      id: conversation.problemId,
+      title: conversation.problemTitle,
+      difficulty: conversation.problemDifficulty,
+      tags: conversation.problemTags
+    };
+  }
+  return undefined;
 }
 
 function captureRemoteConversationId(conversationId: string, data: string) {
@@ -330,7 +346,9 @@ async function send() {
       {
         conversationId: assistant.getConversation(conversation.id)?.remoteConversationId,
         problemId: conversation.problemId,
-        message: buildMessage(text, conversation)
+        message: text,
+        mode: mode.value,
+        problemContext: problemContextPayload(conversation)
       },
       (event, data) => {
         if (event === 'meta') captureRemoteConversationId(conversation.id, data);

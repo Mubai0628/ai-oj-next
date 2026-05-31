@@ -58,6 +58,8 @@
       v-model:sending="aiSending"
       v-model:error="aiError"
       :problem="problem"
+      :code="submission.code"
+      :language="selectedLanguage"
     />
 
     <SubmissionDetailModal

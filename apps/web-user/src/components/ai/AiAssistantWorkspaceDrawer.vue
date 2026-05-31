@@ -35,6 +35,8 @@
                 :sending="sending"
                 :error="error"
                 :context-label="contextLabel"
+                :context-scope-label="contextScopeLabel"
+                :context-notice="contextNotice"
                 :empty-title="t('aiAssistant.noProblemHistoryTitle')"
                 :empty-description="t('aiAssistant.noProblemHistoryDescription')"
                 rich-markdown
@@ -57,7 +59,7 @@ import { computed, onBeforeUnmount, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Message } from '@arco-design/web-vue';
 import { useRouter } from 'vue-router';
-import { streamAi } from '@aioj/api-client';
+import { streamAi, type AiChatPayload } from '@aioj/api-client';
 import AiChatPanel from '@/components/ai/AiChatPanel.vue';
 import AiConversationSidebar from '@/components/ai/AiConversationSidebar.vue';
 import { useAiAssistantStore } from '@/stores/aiAssistant';
@@ -67,6 +69,8 @@ import type { ProblemDetailModel } from '@/types/problem-workspace';
 const props = defineProps<{
   open: boolean;
   problem: ProblemDetailModel | null;
+  code?: string;
+  language?: string;
 }>();
 
 const emit = defineEmits<{
@@ -87,6 +91,19 @@ const problemId = computed(() => (props.problem ? String(props.problem.id) : und
 const problemConversations = computed(() => (problemId.value ? assistant.listByProblem(problemId.value) : []));
 const selectedConversation = computed(() => assistant.getConversation(selectedConversationId.value));
 const contextLabel = computed(() => props.problem?.title || t('ai.noProblem'));
+const codeModes = new Set<AiMode>(['debug', 'edge', 'optimize']);
+const usesCodeContext = computed(() => codeModes.has(mode.value));
+const trimmedCode = computed(() => props.code?.trim() || '');
+const contextScopeLabel = computed(() => (
+  usesCodeContext.value && trimmedCode.value
+    ? t('aiAssistant.contextProblemAndCode')
+    : t('aiAssistant.contextProblemOnly')
+));
+const contextNotice = computed(() => {
+  if (!usesCodeContext.value) return t('aiAssistant.contextProblemOnlyHint');
+  if (trimmedCode.value) return t('aiAssistant.contextCodeIncluded');
+  return t('aiAssistant.contextCodeMissing');
+});
 
 function promptKey() {
   return problemId.value ? `ai-oj:problem-ai-prompt:${problemId.value}` : 'ai-oj:problem-ai-prompt:general';
@@ -131,15 +148,6 @@ function makeTitle(text: string) {
   return title || t('aiAssistant.newConversationTitle');
 }
 
-function buildTutorMessage(text: string) {
-  return t('aiAssistant.problemTutorMessage', {
-    id: props.problem?.id,
-    title: props.problem?.title,
-    mode: t(`aiAssistant.modes.${mode.value}`),
-    request: text
-  });
-}
-
 function captureRemoteConversationId(conversationId: string, data: string) {
   try {
     const payload = JSON.parse(data) as { conversationId?: string };
@@ -163,6 +171,44 @@ function ensureConversation(text: string): AiConversation | undefined {
   });
   selectedConversationId.value = conversation.id;
   return conversation;
+}
+
+function buildProblemContext(): AiChatPayload['problemContext'] | undefined {
+  if (!props.problem) return undefined;
+  return {
+    id: props.problem.id,
+    title: props.problem.title,
+    difficulty: props.problem.difficulty,
+    statement: props.problem.statement,
+    notes: props.problem.notes,
+    tags: props.problem.tags,
+    samples: props.problem.samples.slice(0, 3).map((sample) => ({
+      input: sample.input,
+      expectedOutput: sample.output,
+      sample: true
+    })),
+    timeLimitMillis: props.problem.timeLimitMillis,
+    memoryLimitKb: props.problem.memoryLimitMb * 1024
+  };
+}
+
+function buildCodeContext(): AiChatPayload['codeContext'] | undefined {
+  if (!usesCodeContext.value || !trimmedCode.value) return undefined;
+  return {
+    language: props.language,
+    code: trimmedCode.value
+  };
+}
+
+function buildAiPayload(text: string, conversation: AiConversation): AiChatPayload {
+  return {
+    conversationId: assistant.getConversation(conversation.id)?.remoteConversationId,
+    problemId: props.problem?.id,
+    message: text,
+    mode: mode.value,
+    problemContext: buildProblemContext(),
+    codeContext: buildCodeContext()
+  };
 }
 
 async function send() {
@@ -194,11 +240,7 @@ async function send() {
 
   try {
     await streamAi(
-      {
-        conversationId: assistant.getConversation(conversation.id)?.remoteConversationId,
-        problemId: props.problem.id,
-        message: buildTutorMessage(text)
-      },
+      buildAiPayload(text, conversation),
       (event, data) => {
         if (event === 'meta') captureRemoteConversationId(conversation.id, data);
         if (event === 'message' && assistantMessage) {
